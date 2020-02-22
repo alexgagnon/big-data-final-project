@@ -71,7 +71,20 @@
 \section{Introduction}
 WHAT IS THE PROBLEM
 
-The domain of Question-Answering boils down to an inconsistency between the unstructured natural language based question and the structured schema of the knowledge base that contains the answer. When a question is asked in human language, a processing step must convert its semantics into a formal query suitable to be run against a datastore such as DBpedia, Freebase, and Wikidata. The information in these stores is represented by a graph containing facts in the form of subject/predicate/object triples, known as RDF (e.g. ''(Michal Jordan, born in, Brooklyn NY)''). The primary mechanism for accessing these knowledge graphs is through specialized query languages (e.g. SPARQL), that traverse the graph and retrieve triples matching the request. A failure to convert the question into the appropriate formal query can lead to errors, and the likelihood of an mistaken conversion increases as the question becomes more complex. This can happen either through the question being composed of multiple clauses, or due to thena
+The domain of Question-Answering boils down to an inconsistency between the unstructured natural language based question and the structured schema of the knowledge base that contains the answer.  When a question is asked in human language, a processing step must convert its semantics into a formal query suitable to be run against a datastore such as DBpedia, Freebase, and Wikidata. The information in these stores is represented by a graph containing facts in the form of subject/predicate/object triples, known as RDF (e.g. ''(Michal Jordan, born in, Brooklyn NY)''). The primary mechanism for accessing these knowledge graphs is through specialized query languages (e.g. SPARQL), that traverse the graph and retrieve triples matching the request.
+
+A failure to convert the question into the appropriate formal query will lead to incorrect answers, and the likelihood of an erroneous conversion increases as the question becomes more complex. This can happen either through the question being composed of multiple clauses (i.e. a conjuctive ''and'' or through nested questions where the answer of one clause is used sequentially in the next), or due the intricacies of the language itself, such as ambiguities in pronouns usage.
+
+There are two standard approaches to solving this conversion problem: semantic parsing, and templates. Semantic parsing deconstructs the question into one or more subgraphs, and then attempts to find matches in the knowledge graph. This strategy can be effective, but is prone to incorrect subgraph creation. This is due to the fact that neural networks are typically used, and these require a large and diverse amount set of training data to account for all topologies of subgraphs that exist in the knowledge base. Template-based approaches instead try to convert the question into one or more simpler questions, of which an equivalent structured query has already been generated. For example, a question such as 'what is the name of the person who has won the most NBA MVP awards ever' into 'who won the most NBA MVP awards'. This simpler question is directly mapped to a query pattern: '?award, wonBy, <Person>'. Templates have been found to be effective in returning high quality answers in a timely fashion, however they often suffer in coverage. Zheng et al. where able to outperform state-of-the-art implementations using binary templates
+
+Question and answering is vital for two reasons. First, a store containing potentially the entirety of collected human knowledge is, by itself, useless. A mechanism to extract facts in a generic manner, such as through voice or written text, is essential to give meaning to the endeavor. Secondly, as more information is collected over time, the search space containing the possible answers becomes enormous. A strategy that performs quickly and accurately at scale, and ideally in near-real time, is the desired outcome for most applications.
+
+
+Why is it hard?
+
+
+What are the key components of my approach
+
 
 \section{Citations and Bibliographies}
 \nocite{*}
