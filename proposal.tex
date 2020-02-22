@@ -1,0 +1,82 @@
+\documentclass[sigplan,screen]{acmart}
+
+%%
+%% \BibTeX command to typeset BibTeX logo in the docs
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    \normalfont B\kern-0.5em{\scshape i\kern-0.25em b}\kern-0.8em\TeX}}}
+
+\begin{document}
+
+\title{Generating Simple Language-Based Templates from a Knowledge Graph to Completely Cover its Question-Answer Space.}
+
+\author{Alex Gagnon}
+\email{alex.gagnon@carleton.ca}
+\affiliation{%
+  \institution{Carleton University}
+  \streetaddress{1125 Colonel By Drive}
+  \city{Ottawa}
+  \state{Ontario}
+  \postcode{K1S-5B6}
+}
+
+%%
+%% By default, the full list of authors will be used in the page
+%% headers. Often, this list is too long, and will overlap
+%% other information printed in the page headers. This command allows
+%% the author to define a more concise list
+%% of authors' names for this purpose.
+\renewcommand{\shortauthors}{Gagnon}
+
+\begin{CCSXML}
+  <ccs2012>
+     <concept>
+         <concept_id>10002951.10002952.10003219</concept_id>
+         <concept_desc>Information systems~Information integration</concept_desc>
+         <concept_significance>300</concept_significance>
+         </concept>
+     <concept>
+         <concept_id>10002951.10003227.10003351</concept_id>
+         <concept_desc>Information systems~Data mining</concept_desc>
+         <concept_significance>300</concept_significance>
+         </concept>
+     <concept>
+         <concept_id>10002951.10003260.10003309</concept_id>
+         <concept_desc>Information systems~Web data description languages</concept_desc>
+         <concept_significance>500</concept_significance>
+         </concept>
+     <concept>
+         <concept_id>10002951.10003317</concept_id>
+         <concept_desc>Information systems~Information retrieval</concept_desc>
+         <concept_significance>500</concept_significance>
+         </concept>
+     <concept>
+         <concept_id>10010147.10010178.10010179</concept_id>
+         <concept_desc>Computing methodologies~Natural language processing</concept_desc>
+         <concept_significance>500</concept_significance>
+         </concept>
+   </ccs2012>
+\end{CCSXML}
+
+\ccsdesc[300]{Information systems~Information integration}
+\ccsdesc[300]{Information systems~Data mining}
+\ccsdesc[500]{Information systems~Web data description languages}
+\ccsdesc[500]{Information systems~Information retrieval}
+\ccsdesc[500]{Computing methodologies~Natural language processing}
+
+\keywords{datasets, information retrieval, data description languages}
+
+\maketitle
+
+\section{Introduction}
+WHAT IS THE PROBLEM
+
+The domain of Question-Answering boils down to an inconsistency between the unstructured natural language based question and the structured schema of the knowledge base that contains the answer. When a question is asked in human language, a processing step must convert its semantics into a formal query suitable to be run against a datastore such as DBpedia, Freebase, and Wikidata. The information in these stores is represented by a graph containing facts in the form of subject/predicate/object triples, known as RDF (e.g. ''(Michal Jordan, born in, Brooklyn NY)''). The primary mechanism for accessing these knowledge graphs is through specialized query languages (e.g. SPARQL), that traverse the graph and retrieve triples matching the request. A failure to convert the question into the appropriate formal query can lead to errors, and the likelihood of an mistaken conversion increases as the question becomes more complex. This can happen either through the question being composed of multiple clauses, or due to thena
+
+\section{Citations and Bibliographies}
+\nocite{*}
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{proposal-references}
+
+\end{document}
+\endinput
