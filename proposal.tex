@@ -20,12 +20,6 @@
   \postcode{K1S-5B6}
 }
 
-%%
-%% By default, the full list of authors will be used in the page
-%% headers. Often, this list is too long, and will overlap
-%% other information printed in the page headers. This command allows
-%% the author to define a more concise list
-%% of authors' names for this purpose.
 \renewcommand{\shortauthors}{Gagnon}
 
 \begin{CCSXML}
@@ -68,25 +62,25 @@
 
 \maketitle
 
-\section{Introduction}
-WHAT IS THE PROBLEM
+\section*{Introduction}
+The domain of Question-Answering boils down to an inconsistency between the unstructured natural language based question and the structured schema of the knowledge base that contains the answer. Foe example, given the question 'where was Michael Jordan born?', a system is expected to be able to return the answer 'Brooklyn, New York', in a time manner. The concept of question and answering itself is vital for two reasons. First, a store containing potentially the entirety of collected human knowledge is, by itself, useless. A mechanism to extract facts in a generic manner, such as through voice or written text, is essential to give meaning to the endeavor. Secondly, as more information is collected over time, the search space containing the possible answers becomes enormous. A strategy for question answering that performs quickly and accurately at scale, and ideally in near-real time, is the desired outcome for most applications.
 
-The domain of Question-Answering boils down to an inconsistency between the unstructured natural language based question and the structured schema of the knowledge base that contains the answer.  When a question is asked in human language, a processing step must convert its semantics into a formal query suitable to be run against a datastore such as DBpedia, Freebase, and Wikidata. The information in these stores is represented by a graph containing facts in the form of subject/predicate/object triples, known as RDF (e.g. ''(Michal Jordan, born in, Brooklyn NY)''). The primary mechanism for accessing these knowledge graphs is through specialized query languages (e.g. SPARQL), that traverse the graph and retrieve triples matching the request.
+When a question is asked in human language, a processing step must convert its semantics into a formal query suitable to be run against a datastore such as DBpedia, Freebase, and Wikidata. The information in these stores is represented by a graph containing facts in the form of subject/predicate/object triples, known as RDF (e.g. ''(Michael Jordan, bornIn, Brooklyn NY)''). The primary mechanism for accessing these knowledge graphs is through specialized query languages (e.g. SPARQL), that traverse the graph and retrieve triples matching the request.
 
-A failure to convert the question into the appropriate formal query will lead to incorrect answers, and the likelihood of an erroneous conversion increases as the question becomes more complex. This can happen either through the question being composed of multiple clauses (i.e. a conjuctive ''and'' or through nested questions where the answer of one clause is used sequentially in the next), or due the intricacies of the language itself, such as ambiguities in pronouns usage.
+A failure to convert the question into the appropriate formal query will lead to incorrect answers. The likelihood of an erroneous conversion increases as the question becomes more complex. This can occur in several situations. Firstly, when a question is composed of multiple clauses (i.e. a conjuctive ''and'' or through nested questions where the answer of one clause is used sequentially in the next). Secondly, the intricacies of the language itself can cause ambiguities, such as when pronoun usage makes the subject difficult or impossible to identify (e.g. 'John has a son named Tom. He went to Harvard'.)
 
-There are two standard approaches to solving this conversion problem: semantic parsing, and templates. Semantic parsing deconstructs the question into one or more subgraphs, and then attempts to find matches in the knowledge graph. This strategy can be effective, but is prone to incorrect subgraph creation. This is due to the fact that neural networks are typically used, and these require a large and diverse amount set of training data to account for all topologies of subgraphs that exist in the knowledge base. Template-based approaches instead try to convert the question into one or more simpler questions, of which an equivalent structured query has already been generated. For example, a question such as 'what is the name of the person who has won the most NBA MVP awards ever' into 'who won the most NBA MVP awards'. This simpler question is directly mapped to a query pattern: '?award, wonBy, <Person>'. Templates have been found to be effective in returning high quality answers in a timely fashion, however they often suffer in coverage. Zheng et al. where able to outperform state-of-the-art implementations using binary templates
+There are two standard approaches to solving this conversion problem: semantic parsing, and templates.
 
-Question and answering is vital for two reasons. First, a store containing potentially the entirety of collected human knowledge is, by itself, useless. A mechanism to extract facts in a generic manner, such as through voice or written text, is essential to give meaning to the endeavor. Secondly, as more information is collected over time, the search space containing the possible answers becomes enormous. A strategy that performs quickly and accurately at scale, and ideally in near-real time, is the desired outcome for most applications.
+\textbf{Semantic Parsing}. Semantic parsing deconstructs the question into one or more subgraphs based on the grammatical and syntactical structure of the sentence, and then attempts to find matches in the knowledge graph. This strategy can be effective as it is, in essence, 'real-time' and does not require a large bank of previously computed examples. However, it is prone to incorrect subgraph creation. This is due to the fact that neural networks are typically used, and these require a large and diverse set of training data to account for all topologies of subgraphs that exist in the knowledge base.
 
+\textbf{Templates}. Template-based approaches instead try to convert the question into one or more simpler questions, of which an equivalent structured query has already been generated. For example, a question such as 'what is the name of the person who has won the most NBA MVP awards ever' into 'who won the most NBA MVP awards'. This simpler question is directly mapped to a query pattern: '?award, wonBy, <Person>'. Templates have been found to be effective in returning high quality answers in a timely fashion, however they often suffer in coverage. Zheng et al. were able to outperform state-of-the-art implementations using binary templates. However, the source of the natural language templates was gathered through examining a single text corpus. As such, it suffered a lack of generalizability to other sources. It also uses neural networks to create the simplified questions, which, as previously mentioned, depends on having accurate and diverse training data which can be limiting given that only a sole source in a specific domain is used.
 
-Why is it hard?
+We seek to address the issues of limited coverage for template-based approaches by instead generating natural language/query pattern pairs by starting from the knowledge base itself. By traversing the triple graph, we can effectively create simple questions that map to the current fact. For example, given the triple (Michael Jordan, bornIn, Brooklyn), we can create simple questions to represent it such as 'where was Michael Jordan born', and its corresponding SPARQL queries 'Michael Jordan, bornIn, <City>'. Other more general questions stemming from this fact can also be produced, such as 'who is Michael Jordan', and 'where is Brooklyn', which further complete the search space. The use of question words (e.g. when, where, who, what, why, how) can be injected based on the types of entities and classification of predicates found in the fact. Similar 'bottom-up' approaches of starting from the knowledge base itself include work by \citeauthor{generating-factoids}, where a large corpora of question-answer pairs was created. The goal in this case, however, was to produce question-answer pairs for use in benchmarking and not for use as templates.
 
+Difficulties in the approach include ambiguities and laxness in the language (i.e. where was <Person> born, in which city was <Person> born), and the sheer volume of templates generated. The vast number of which can be generated is orders of magnitude larger than the number of facts in the knowledge base, and as such, requires indexing/space reduction methodologies such as those in the implementation by \citeauthor{zheng-question-over-knowledge-graph}. We investigate indexing and filtering strategies to reduce the space complexity produced and to ensure the natural language templates can be matched in a timely manner.
 
-What are the key components of my approach
+We will not be investigating the actual conversion of a natural language question into its corresponding set of simple questions, however, for more information on the topic see \cite{zheng-how-to-build-rdf-templates, automated-template-generation}
 
-
-\section{Citations and Bibliographies}
 \nocite{*}
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{proposal-references}
