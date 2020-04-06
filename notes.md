@@ -18,3 +18,9 @@ https://www.wikidata.org/wiki/Wikidata:Glossary
 
 List of all properties
 https://www.wikidata.org/wiki/Wikidata:Database_reports/List_of_properties/all
+
+https://towardsdatascience.com/named-entity-recognition-with-nltk-and-spacy-8c4a7d88e7da
+
+https://realpython.com/natural-language-processing-spacy-python/
+
+https://stackoverflow.com/questions/18733225/extract-all-types-and-their-labels-in-english-from-dbpedia

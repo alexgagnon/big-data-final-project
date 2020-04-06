@@ -1,0 +1,2 @@
+DEBUG = True
+UPDATE = True
