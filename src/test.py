@@ -1,8 +1,11 @@
 from SPARQLWrapper import SPARQLWrapper2
-from typing import Any, List, Literal, Set, Union
+from typing import Any, List, Tuple
 import json
 import pickle
 
+UPDATE = True
+
+# Use SPARQLWrapper2 so we can do operations directly on the response
 sparql = SPARQLWrapper2("http://dbpedia.org/sparql")
 
 filename = 'elements'
@@ -44,10 +47,11 @@ def save_to_file(obj: Any, as_json=True, as_pickle=False, filename=filename) -> 
         with open(f"{filename}.json", "w", encoding="utf8") as f:
             json.dump(obj, f, ensure_ascii=False)
 
+    print('Saved to file')
 
-def process_results(results: SPARQLWrapper2.query, key) -> List:
-    return [x["label"].value
-            for x in results.bindings]
+
+def process_results(results: SPARQLWrapper2.query, key) -> List[Tuple[str, str]]:
+    return [(x["label"].value, x[key].value) for x in results.bindings]
 
 
 elements = {
@@ -72,10 +76,10 @@ def get_all_predicates():
     predicates = {}
     for name, subtypes in types:
         if name not in predicates:
-            predicates[name] = set()
+            predicates[name] = []
 
         for subtype in subtypes:
-            query = f"""select ?{key} ?label where {{
+            query = f"""select distinct ?{key} ?label where {{
                             ?{key} a owl:DatatypeProperty ;
                               rdfs:range xsd:{subtype} ;
                               rdfs:label ?label
@@ -83,7 +87,7 @@ def get_all_predicates():
                       }}"""
             sparql.setQuery(query)
             results = sparql.query()
-            predicates[name].update(process_results(results, key))
+            predicates[name].append(process_results(results, key))
 
         # Sets can't be output as JSON
         predicates[name] = list(predicates[name])
@@ -91,35 +95,43 @@ def get_all_predicates():
     return predicates
 
 
-def generate_questions(elements) -> Set[str]:
-    questions = set()
+def generate_questions(elements) -> List[Tuple[str, str]]:
+    questions = []
 
-    for subtype in elements['predicates'].items():
-        for boolean_predicates in subtype['boolean']:
-            print(boolean_predicates)
-        # questions.add(f"has {boolean_predicate} happened")
-        # questions.add(f"will {boolean_predicate} happen")
-        # questions.add(f"is {boolean_predicate} happening")
-        # questions.add(f"did {boolean_predicate} happen")
+    for subtype, predicates in elements['predicates'].items():
+        for predicate in predicates:
+            if subtype == 'boolean':
+                questions.append(
+                    (predicate, "select * where { ?s ?p ?o } limit 1"))
 
     return questions
 
 
-elements = {}
-source = 'Loading from: '
-try:
-    with open(f'{filename}.json') as f:
-        elements = json.load(f)
-        source += f.name
-except:
-    try:
-        with open(f'{filename}.pkl') as f:
-            elements = pickle.load(f)
-            source += f.name
-
-    except:
+def main():
+    elements = {}
+    source = 'Loading from: '
+    if (UPDATE):
         elements = load_predicates_and_types()
-        source += 'new copy'
+        source = 'Updating from DB'
 
-print(source)
-print(list(generate_questions(elements)))
+    else:
+        try:
+            with open(f'{filename}.json') as f:
+                elements = json.load(f)
+                source += f.name
+        except:
+            try:
+                with open(f'{filename}.pkl') as f:
+                    elements = pickle.load(f)
+                    source += f.name
+
+            except:
+                elements = load_predicates_and_types()
+                source = 'No local copy, pulling from DB'
+
+    print(source)
+    print(list(generate_questions(elements)))
+
+
+if __name__ == "__main__":
+    main()
