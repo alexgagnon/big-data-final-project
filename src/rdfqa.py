@@ -1,7 +1,7 @@
+from templates import updateTemplates
 import argparse
 import logging
 import config
-from templates import updateTemplates
 
 logging.basicConfig()
 log = logging.getLogger("logger")
@@ -44,6 +44,7 @@ def main() -> None:
     parser = init_parser()
     args = parser.parse_args()
     log.setLevel(logging.DEBUG if args.debug else logging.INFO)
+    config.DEBUG = args.debug
 
     if args.update:
         updateTemplates()

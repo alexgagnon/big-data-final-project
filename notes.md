@@ -24,3 +24,9 @@ https://towardsdatascience.com/named-entity-recognition-with-nltk-and-spacy-8c4a
 https://realpython.com/natural-language-processing-spacy-python/
 
 https://stackoverflow.com/questions/18733225/extract-all-types-and-their-labels-in-english-from-dbpedia
+
+The RDF Concepts and Abstract Syntax specification [RDF11-CONCEPTS] describes the concept of an RDF property as a relation between subject resources and object resources.
+
+'a' short for rdf:type
+
+https://towardsdatascience.com/understanding-neural-networks-from-neuron-to-rnn-cnn-and-deep-learning-cd88e90e0a90
