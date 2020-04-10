@@ -9,3 +9,47 @@ This software and paper was produced as the final project deliverable for COMP51
 - install dependencies: `pip install -r requirements.txt`
 - run: `python3 src/rdfqa.py`
 - if you need help, use `-h/--help` option
+
+## Problem Definition
+
+- restricted to:
+  - active predicates only, no passive (i.e. 'loves' vs. 'loved by')
+  - only use entities/predicates that have english labels
+  - 'used' predicates, as opposed to 'defined' predicates
+    - used - `select ?p {?s ?p ?o}`
+    - defined - `select distinct ?p {{select ?p {?p a rdf:Property}} union {select ?p { VALUES ?t { owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty } ?p a ?t}}`
+
+## Concepts
+
+- if you're new to SPARQL, NLP, and Knowledge bases, the following may help you understand the code base better
+
+### SPARQL
+
+- there are several large knowledge graphs available online, such as DBpedia and Wikidata, that you can query with the SPARQL language
+- SPARQL is somewhat similar to SQL, and allows for create (CONSTRUCT) and read (SELECT), and also provides ASK (true/false) and DESCRIBE (summarize) operations
+- all facts in the knowledge graph are stored as 3-tuples called _triples_: (subject, predicate, object)
+  - i.e. `(Ottawa, capitalOf, Canada)` and `(Earth, instanceOf, Planet)`
+- all defined entities are actually URIs, typically in the form of URLs (i.e. `http://dbpedia.org/property/Artist`)
+- variables are prefixed with `?`, i.e. `?label`, and can be referenced throughout query, both in the statement and to select projections (i.e. `select ?label {...}`)
+- every statement has 3 positional arguments rhat correspond to the triples parameters
+  - i.e. `select * {1 2 3}`
+  - 1 = subject
+  - 2 = predicate
+  - 3 = object
+- for each statement, you either fix an argument with a URI or literal, or assign a variable
+- the SPARQL engine will find all matching triples in the graph, i.e.
+  - `select * {?s <https://www.wikidata.org/wiki/Q5119> <https://www.wikidata.org/wiki/Q16>}`
+- `a` is short for `rdf:type`, hence things like `?s a rdf:Property`
+- `.` means to conjoin one statement to the next (i.e. keep context between them)
+- `;` means to conjoin and use the **_same subject_** between statements (basically, you only need the `?p ?o` part)
+- for each conjuction (`.` or `;`), an inner join will occur, meaning all subjects that don't match the statement will be filtered out.
+  - if you want to still include these records, you'll need to use `OPTIONAL` keyword before the statement
+- you can restrict the possible values using additional qualifiers, such as domain (input, subject), range (output, object), and datatype
+
+### NLP
+
+- NLP is about deconstructing human language, with all its complexity and ambiguity, into something a computer can operate on
+- given any bit of language, we need to:
+  - parse
+  - tokenize
+  -

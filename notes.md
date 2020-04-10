@@ -25,6 +25,8 @@ https://realpython.com/natural-language-processing-spacy-python/
 
 https://stackoverflow.com/questions/18733225/extract-all-types-and-their-labels-in-english-from-dbpedia
 
+https://stackoverflow.com/questions/56806850/how-to-select-predicates-and-their-respective-labels-in-sparql
+
 The RDF Concepts and Abstract Syntax specification [RDF11-CONCEPTS] describes the concept of an RDF property as a relation between subject resources and object resources.
 
 'a' short for rdf:type

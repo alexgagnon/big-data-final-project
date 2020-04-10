@@ -1,2 +1,2 @@
 DEBUG = True
-UPDATE = True
+UPDATE = False

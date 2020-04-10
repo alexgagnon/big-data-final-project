@@ -5,6 +5,7 @@ from urllib.parse import quote_plus
 base_url = 'https://google.com/search?q='
 
 
+# DOESN'T WORK, Google has restricted their search api to behind a key wall
 def google(search_term: str, exact=True, count_only=True) -> int:
     search_term = f'"{quote_plus(search_term)}"'
     print(search_term)
