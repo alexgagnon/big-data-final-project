@@ -4,11 +4,13 @@ This software and paper was produced as the final project deliverable for COMP51
 
 ## Running the application
 
+- an easy setup file is provided `./setup.sh`, otherwise do the following steps
 - install a virtual environment if you want some isolation
   - i.e. `sudo apt install python3-venv && python3 -m venv venv && . venv/bin/activate`
 - install dependencies: `pip install -r requirements.txt`
+- [spaCy](https://spacy.io/) is used for NLP on the questions, and we need the english language model
+  - `python -m spacy download en`
 - run: `python3 src/rdfqa.py`
-- if you need help, use `-h/--help` option
 
 ## Problem Definition
 
@@ -21,7 +23,7 @@ This software and paper was produced as the final project deliverable for COMP51
 
 ## Concepts
 
-- if you're new to SPARQL, NLP, and Knowledge bases, the following may help you understand the code base better
+- if you're new to SPARQL, NLP, and Knowledge Bases, the following may help you understand the code base better
 
 ### SPARQL
 
@@ -43,13 +45,13 @@ This software and paper was produced as the final project deliverable for COMP51
 - `.` means to conjoin one statement to the next (i.e. keep context between them)
 - `;` means to conjoin and use the **_same subject_** between statements (basically, you only need the `?p ?o` part)
 - for each conjuction (`.` or `;`), an inner join will occur, meaning all subjects that don't match the statement will be filtered out.
-  - if you want to still include these records, you'll need to use `OPTIONAL` keyword before the statement
+  - if you want to still include these records even though they might not have the property, you'll need to use `OPTIONAL` keyword before the statement
 - you can restrict the possible values using additional qualifiers, such as domain (input, subject), range (output, object), and datatype
 
 ### NLP
 
 - NLP is about deconstructing human language, with all its complexity and ambiguity, into something a computer can operate on
-- given any bit of language, we need to:
-  - parse
-  - tokenize
-  -
+- given any bit of language, we have some operations we can perform:
+  - tokenization - identifying pieces of text, like entities (nouns), verbs, adjectives, etc.
+  - stemming - finding the 'stem' of a word, useful to find variations of a word (i.e. comput is the stem of compute, computed, computer, computing, etc.). The stem need not be a real word
+  - lemmatization - similar to 'stemming', but the root is actually a word (i.e. compute is the lemma of computer, computed, computing, etc.)

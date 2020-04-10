@@ -1,6 +1,7 @@
 from SPARQLWrapper import SPARQLWrapper, JSON
 from typing import Any, List, Tuple, Dict
 from http.client import HTTPResponse
+from utils import generate_question, get_answer
 import json
 import pickle
 import argparse
@@ -51,19 +52,30 @@ superlatives = ['first', 'last', 'most', 'least', 'largest', 'smallest', 'talles
                 'latest', 'deepest', 'shallowest', 'fastest', 'slowest', 'fattest', 'thinnest', 'greatest', 'best', 'worst', 'nearest', 'furthest', 'farthest']
 
 
-def is_invalid_query(response: HTTPResponse) -> bool:
+def check_invalid_query(response: HTTPResponse) -> bool:
     return is_incomplete_query(response) or is_partial_query(response)
 
 
 def is_incomplete_query(response: HTTPResponse) -> bool:
+    incomplete = response.getheader('X-SPARQL-MaxRows') != None
+    if incomplete:
+        log.warn('Query response too large!')
     return response.getheader('X-SPARQL-MaxRows') != None
 
 
 def is_partial_query(response: HTTPResponse) -> bool:
-    return response.getheader('X-SQL-State') != None
+    partial = response.getheader('X-SQL-State') != None
+    if partial:
+        log.warn('Partial response!')
+    return partial
 
 
-def save_to_file(obj: Any, as_json=True, as_pickle=False, filename=filename) -> None:
+def save_to_file(
+    obj: Any,
+    as_json=True,
+    as_pickle=False,
+    filename=filename
+) -> None:
     if as_pickle:
         with open(f"{filename}.pkl", "wb") as f:
             pickle.dump(obj, f)
@@ -107,9 +119,7 @@ def get_all_predicates():
             sparql.setQuery(query)
             results = sparql.query()
             bindings = results.convert()['results']['bindings']
-            if is_invalid_query(results.response):
-                log.warn('Query was not complete!')
-
+            check_invalid_query(results.response)
             predicates[name].extend(process_results(bindings, key))
 
         # Sets can't be output as JSON
@@ -122,13 +132,12 @@ def generate_questions(elements) -> List[Tuple[str, str]]:
     questions = []
 
     for subtype, predicates in elements['predicates'].items():
-        if config.DEBUG and subtype != 'boolean':
+        if config.DEBUG and subtype != 'string':
             log.debug(f'{subtype}: skipping in debug')
             continue
         for (predicate, uri) in predicates:
-            if subtype == 'boolean':
-                questions.append(
-                    (predicate, "select * where { ?s ?p ?o } limit 1"))
+            questions.append(
+                (f"who ??v?? ??s?? {predicate}", "select * where { ?s ?p ?o } limit 1"))
 
     return questions
 
@@ -163,6 +172,13 @@ def init_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=config.UPDATE
     )
+    parser.add_argument(
+        "-b",
+        "--benchmark",
+        help="runs benchmark tests",
+        action="store_true",
+        default=config.BENCHMARK
+    )
     return parser
 
 
@@ -194,23 +210,24 @@ def init_elements(update: bool) -> Dict:
     return elements
 
 
-def get_answer(question: str) -> str:
-    return 'Working on it!'
-
-
 def main():
     parser = init_parser()
     args = parser.parse_args()
-    log.setLevel(logging.DEBUG if args.debug else logging.INFO)
+    log.setLevel(logging.DEBUG if args.debug else logging.WARN)
     config.DEBUG = args.debug
     config.UPDATE = args.update
+    config.BENCHMARK = args.benchmark
 
-    elements = init_elements(update=args.update)
+    log.debug(f'Running in DEBUG mode')
+
+    # elements = init_elements(update=args.update)
+    # print(generate_questions(elements))
 
     while True:
-        question = input("Ask a question: ")
+        question = input("What's your question?\n")
         answer = get_answer(question)
         print(answer)
+        print()
 
 
 if __name__ == "__main__":
