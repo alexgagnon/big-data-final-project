@@ -1,7 +1,7 @@
 from SPARQLWrapper import SPARQLWrapper, JSON
 from typing import Any, List, Tuple, Dict
 from http.client import HTTPResponse
-from utils import generate_question, get_answer
+from utils import generate_question, get_all_properties, get_answer
 import json
 import pickle
 import argparse
@@ -52,30 +52,16 @@ superlatives = ['first', 'last', 'most', 'least', 'largest', 'smallest', 'talles
                 'latest', 'deepest', 'shallowest', 'fastest', 'slowest', 'fattest', 'thinnest', 'greatest', 'best', 'worst', 'nearest', 'furthest', 'farthest']
 
 
-def check_invalid_query(response: HTTPResponse) -> bool:
-    return is_incomplete_query(response) or is_partial_query(response)
-
-
-def is_incomplete_query(response: HTTPResponse) -> bool:
-    incomplete = response.getheader('X-SPARQL-MaxRows') != None
-    if incomplete:
-        log.warn('Query response too large!')
-    return response.getheader('X-SPARQL-MaxRows') != None
-
-
-def is_partial_query(response: HTTPResponse) -> bool:
-    partial = response.getheader('X-SQL-State') != None
-    if partial:
-        log.warn('Partial response!')
-    return partial
-
-
 def save_to_file(
     obj: Any,
     as_json=True,
     as_pickle=False,
-    filename=filename
+    filename=None
 ) -> None:
+    if filename == None:
+        log.error('Need to provide a filename')
+        return
+
     if as_pickle:
         with open(f"{filename}.pkl", "wb") as f:
             pickle.dump(obj, f)
@@ -89,43 +75,6 @@ def save_to_file(
 
 def process_results(results, key) -> List[Tuple[str, str]]:
     return [(x["label"]['value'], x[key]['value']) for x in results]
-
-
-def load_predicates_and_types():
-    elements = {
-        'predicates': get_all_predicates(),
-        'types': {}
-    }
-
-    save_to_file(elements)
-
-    return elements
-
-
-def get_all_predicates():
-    key = "predicate"
-    predicates = {}
-    for name, subtypes in types:
-        if name not in predicates:
-            predicates[name] = []
-
-        for subtype in subtypes:
-            query = f"""select distinct ?{key} ?label where {{
-                            ?{key} a owl:DatatypeProperty ;
-                              rdfs:range xsd:{subtype} ;
-                              rdfs:label ?label
-                            filter langMatches( lang(?label), "EN" )
-                      }}"""
-            sparql.setQuery(query)
-            results = sparql.query()
-            bindings = results.convert()['results']['bindings']
-            check_invalid_query(results.response)
-            predicates[name].extend(process_results(bindings, key))
-
-        # Sets can't be output as JSON
-        predicates[name] = list(predicates[name])
-
-    return predicates
 
 
 def generate_questions(elements) -> List[Tuple[str, str]]:
@@ -173,6 +122,19 @@ def init_parser() -> argparse.ArgumentParser:
         default=config.UPDATE
     )
     parser.add_argument(
+        "-q",
+        "--question",
+        help="provide a question you want answered",
+        action="store",
+    )
+    parser.add_argument(
+        "-p",
+        "--prompt",
+        help="ask questions from the terminal",
+        action="store_true",
+        default=True
+    )
+    parser.add_argument(
         "-b",
         "--benchmark",
         help="runs benchmark tests",
@@ -182,52 +144,64 @@ def init_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def init_elements(update: bool) -> Dict:
-    elements = {}
-    source = 'Loading from: '
+def update() -> None:
+    """
+    Updates the templates by querying the store and saving them to file
+    """
 
-    if (update):
-        log.info('Updating from DB')
-        elements = load_predicates_and_types()
+    predicates = get_all_properties()
+    save_to_file(predicates, filename='properties')
+    # generate_questions_from_predicates()
 
-    else:
-        try:
-            with open(f'{filename}.json') as f:
-                elements = json.load(f)
-                source += f.name
-        except:
-            try:
-                with open(f'{filename}.pkl') as f:
-                    elements = pickle.load(f)
-                    source += f.name
 
-            except:
-                elements = load_predicates_and_types()
-                source = 'No local copy, pulling from DB'
-
-        log.info(source)
-
-    return elements
+def has_cache():
+    """
+    Checks if a local copy of the templates exist
+    """
+    log.debug('TODO')
+    return True
 
 
 def main():
     parser = init_parser()
     args = parser.parse_args()
-    log.setLevel(logging.DEBUG if args.debug else logging.WARN)
+    log.setLevel(logging.DEBUG if args.debug else logging.INFO)
     config.DEBUG = args.debug
     config.UPDATE = args.update
     config.BENCHMARK = args.benchmark
 
-    log.debug(f'Running in DEBUG mode')
+    log.debug(f'Started in DEBUG mode')
+
+    if args.update or not has_cache():
+        log.info('Updating templates')
+        update()
+    else:
+        log.debug('Loading templates from cache')
 
     # elements = init_elements(update=args.update)
     # print(generate_questions(elements))
 
-    while True:
-        question = input("What's your question?\n")
-        answer = get_answer(question)
-        print(answer)
-        print()
+    if args.benchmark and (args.question or args.prompt):
+        log.error('Cannot ask question and run benchmarks at the same time')
+        exit(-1)
+
+    elif args.benchmark:
+        log.info('Running benchmarks...')
+        log.info('TODO')
+
+    elif args.question:
+        answer = get_answer(args.question)
+        log.info(answer)
+
+    elif args.prompt:
+        while True:
+            question = input("What's your question?\n")
+            answer = get_answer(question)
+            log.info(answer)
+            log.info('\n')
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":

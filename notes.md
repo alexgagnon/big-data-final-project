@@ -32,3 +32,10 @@ The RDF Concepts and Abstract Syntax specification [RDF11-CONCEPTS] describes th
 'a' short for rdf:type
 
 https://towardsdatascience.com/understanding-neural-networks-from-neuron-to-rnn-cnn-and-deep-learning-cd88e90e0a90
+
+https://www.w3.org/TR/2012/REC-xmlschema11-2-20120405/#built-in-datatypes
+
+## Future Work
+
+- detect language automatically (and use that in langMatches)
+-
