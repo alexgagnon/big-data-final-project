@@ -9,7 +9,7 @@ python3 -m venv venv
 
 # install required dependencies
 pip install -r requirements.txt
-python3 -m spacy download en
+python3 -m spacy download en_core_web_lg
 
 # run application
-python3 src/rdfqa.py
+python3 src/rdfqa.py -h

@@ -4,12 +4,14 @@ import config
 from http.client import HTTPResponse
 from typing import List, Tuple
 from SPARQLWrapper import SPARQLWrapper, JSON
+from spacy import displacy
+from tabulate import tabulate
 
 log = logging.getLogger("logger")
 
 sparql = SPARQLWrapper(config.ENDPOINT, returnFormat=JSON)
 
-sp = spacy.load('en_core_web_sm')
+nlp = spacy.load('en_core_web_lg')
 
 
 used_predicates = f"""
@@ -55,19 +57,88 @@ PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dbp: <http://dbpedia.org/property/>
 """
 
-question_templates = {
-    "date": ['(when (did|will)|in what (year|month) did|on what day did) {o} (occur|happen)']
+sparql_statements = {
+    'age': """select ?age {
+        dbr:Michael_Jackson dbo:birthDate ?birthdate .
+    dbr:Michael_Jackson dbo:deathDate ?deathdate .
+    bind(year(?deathdate) - year(?birthdate) - if(month(?deathdate) < month(?birthdate) || (month(?deathdate)=month(?birthdate) && day(?deathdate < day(?birthdate)), 1, 0) as ?age)}""",
+    'time': """f""",
+    'entity': """
+        ?s a rdf:Resource ;
+          rdfs:label ?label .
+        filter (
+            regex(str(?label), %s, 'i') &&
+            langMatches( lang(?label), "EN" )
+        )
+    """
 }
+
+question_templates = [
+    ('how old is {s}', sparql_statements['age']),
+    ('what age is {s}', sparql_statements['age']),
+    ('when did {o} occur', ""),
+    ('when did {o} happen', ""),
+    ('when will {o} occur', ""),
+    ('when will {o} happen', ""),
+    ('in what year did {o} happen', ""),
+    ('in what year did {o} occur', ""),
+    ('in what month did {o} happen', ""),
+    ('in what month did {o} occur', ""),
+    ('in what year will {o} happen', ""),
+    ('in what year will {o} occur', ""),
+    ('in what month will {o} happen', ""),
+    ('in what month will {o} occur', ""),
+    ('on what day did {o} happen', ""),
+    ('on what day did {o} occur', ""),
+    ('on what day will {o} happen', ""),
+    ('on what day will {o} occur'""),
+    ('when did {o} happen', ""),
+    ('when did {o} occur', ""),
+]
+
+
+def query(query_string: str, endpoint: str = config.ENDPOINT) -> SPARQLWrapper.query:
+    """
+    Performs a query
+    """
+    query_string = f"""
+    {prefixes}
+    {query_string}
+    """
+    if sparql.endpoint != endpoint:
+        sparql.endpoint = endpoint
+    sparql.setQuery(query_string)
+    return sparql.query()
 
 
 def generate_question(
     question: str = '{q}',
-    helper_verb: str = '{h}',
+    helper_verb: str = '{a}',
     subject: str = '{s}',
     verb: str = '{v}',
     obj: str = '{o}'
 ) -> str:
     return f'{question} {helper_verb} {subject} {verb} {obj}'
+
+
+def is_similar(similarity: float, threshold: float = 0.8):
+    return similarity >= threshold
+
+
+def get_similarity(question: str, template: str) -> float:
+    q = nlp(question)
+    t = nlp(template)
+    return q.similarity(t)
+
+
+def get_similar_templates(question: str, templates, threshold=0.8) -> List[Tuple[str, str, str]]:
+    valid_templates = []
+    for template, query in templates:
+        similarity = get_similarity(question, template)
+        if is_similar(similarity):
+            valid_templates.append((similarity, template, query))
+
+    return valid_templates
 
 
 def check_query(response: HTTPResponse) -> bool:
@@ -78,7 +149,7 @@ def is_incomplete_query(response: HTTPResponse) -> bool:
     incomplete = response.getheader('X-SPARQL-MaxRows') != None
     if incomplete:
         log.warn('Query response too large!')
-    return response.getheader('X-SPARQL-MaxRows') != None
+    return incomplete
 
 
 def is_partial_query(response: HTTPResponse) -> bool:
@@ -97,7 +168,8 @@ types = {
     'boolean': ['boolean'],
     'integer': ['integer', 'long'],
     'decimal': ['float', 'double'],
-    'datetime': ['datetime', 'date', 'time', 'gYear', 'gMonth', 'gDay'],
+    'date': ['date', 'gYear', 'gMonth', 'gDay'],
+    'time': ['datetime', 'time'],
     'object': None,
     'annotation': None
 }
@@ -124,7 +196,7 @@ def get_all_properties():
                 sparql.setQuery(query)
                 results = sparql.query()
                 bindings = results.convert()['results']['bindings']
-                check_invalid_query(results.response)
+                check_query(results.response)
                 properties[property_type].extend(
                     process_results(bindings, key))
 
@@ -144,58 +216,109 @@ def get_all_properties():
     return properties
 
 
-def find_all_indexes(iterable, character):
-    return [i for i, letter in enumerate(iterable) if letter == character]
-
-
-def generate_questions_from_template(template: str) -> List[str]:
-    questions = []
-    fork_points = find_all_indexes(template, '(')
-
-
-def get_option(string: str):
-    return [x for x in str.split('|')]
-    return str.split(')')[0]
-
-
 def convert_question_to_template(question: str) -> str:
-    sentence = sp(question)
-    log.debug([(word.text, word.pos_) for word in sentence])
-    log.debug([entity for entity in sentence.ents])
+    sentence = nlp(question)
+
+    if config.DEBUG:
+        token_table = [[
+            token.text,
+            token.prob,
+            token.lemma_,
+            (token.pos, token.pos_),
+            token.tag_,
+            token.dep_,
+            token.shape_,
+            token.is_stop
+        ] for token in sentence]
+
+        log.debug(
+            tabulate(
+                token_table,
+                headers=[
+                    'text', 'probability', 'lemma', 'part-of-speech', 'tag', 'dependency', 'shape', 'is stop'
+                ]
+            )
+        )
+
+        log.debug('\n')
+
+        log.debug(
+            tabulate(
+                [[ent.text, ent.label_, ent.kb_id_] for ent in sentence.ents],
+                headers=['text', 'label', 'KB ID']
+            )
+        )
+
+        displacy.render(sentence, style='dep')
+        displacy.render(sentence, style='ent')
+
+    def replace_token(token) -> str:
+        new_token = token.text
+        if token.pos_ == 'VERB':
+            new_token = '{v}'
+        elif token.pos == 'AUX':
+            new_token = '{a}'
+
+        return new_token
+
+    template_tokens = []
+    template_tags = []
+
+    # i = 0
+    # while i < len(sentence):
+    #     for ent in sentence.ents:
+    #         if i == ent.start_char:
+    #             i += len(ent)
+    #             template_tokens.append('{e}')
+    #         else:
+    #             template_tokens.append(replace_token(sentence[i]))
+    #             i += 1
+
+    last_end = 0
+    for ent in sentence.ents:
+        template_tokens.extend([replace_token(token)
+                                for token in sentence[last_end:ent.start]])
+        template_tags.extend(
+            [token.pos_ for token in sentence[last_end:ent.start]])
+
+        template_tokens.append('{e}')
+        template_tags.append(ent.label_)
+
+        last_end = ent.end
+
+    template_tokens.extend([replace_token(token)
+                            for token in sentence[last_end:]])
+    template_tags.extend(
+        [token.tag_ for token in sentence[last_end:]])
+
+    tag_string = ' '.join(template_tags)
+    template_string = ' '.join(template_tokens)
+
+    log.debug(tag_string)
+    log.debug(template_string)
+
+    return template_string
 
 
-def query(query_string: str, endpoint: str = config.ENDPOINT) -> SPARQLWrapper.query:
-    """
-    Performs the query
-    """
-    query_string = f"""
-    {prefixes}
-    {query_string}
-    """
-    if sparql.endpoint != endpoint:
-        sparql.endpoint = endpoint
-    log.debug("Executing query: \n%s", query_string)
-    sparql.setQuery(query_string)
-    return sparql.query()
+def get_answer(question: str, templates) -> List[str]:
+    question_template = convert_question_to_template(question)
+    templates = get_similar_templates(question_template, templates)
 
+    if len(templates) == 0:
+        log.info('Could not find any similar templates!')
+        return []
 
-def get_answer(question: str) -> List[str]:
-    # elements = [('hello there', f"""SELECT DISTINCT ?uri ?string
-    #              WHERE {{?uri rdf:type dbo:Film .
-    #                     ?uri dbo:starring dbr:Julia_Roberts .
-    #                     ?uri dbo:starring dbr:Richard_Gere .
-    #                     OPTIONAL {{?uri rdfs:label ?string . FILTER(lang(?string)='en')}}
-    #                     }}""")]
+    answers = []
 
-    # example = [("where was {entity} born", 12)]
+    for similarity, template, query_string in templates:
+        results = query(query_string)
+        bindings = results.convert()['results']['bindings']
+        check_query(results.response)
 
-    # print(example[0][0].format(entity='J.K. Rowling'))
-    # example_questions = generate_question(question='when',)
+        if len(bindings) == 0:
+            log.info('Could not find any results!')
+            return []
 
-    # # template = convert_question_to_template(question)
+        answers.extend([x["result"]["value"] for x in bindings])
 
-    # result = query(
-    #     elements[0][1], endpoint="http://query.wikidata.org/").convert()
-    # answers = [x["string"]["value"] for x in result["results"]["bindings"]]
-    answers = ['Working on it!']
     return answers

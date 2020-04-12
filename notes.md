@@ -35,6 +35,8 @@ https://towardsdatascience.com/understanding-neural-networks-from-neuron-to-rnn-
 
 https://www.w3.org/TR/2012/REC-xmlschema11-2-20120405/#built-in-datatypes
 
+https://nlp.town/blog/sentence-similarity/
+
 ## Future Work
 
 - detect language automatically (and use that in langMatches)

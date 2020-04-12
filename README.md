@@ -8,9 +8,9 @@ This software and paper was produced as the final project deliverable for COMP51
 - install a virtual environment if you want some isolation
   - i.e. `sudo apt install python3-venv && python3 -m venv venv && . venv/bin/activate`
 - install dependencies: `pip install -r requirements.txt`
-- [spaCy](https://spacy.io/) is used for NLP on the questions, and we need the english language model
-  - `python -m spacy download en`
-- run: `python3 src/rdfqa.py`
+- [spaCy](https://spacy.io/) is used for NLP on the questions, and we need the english language model (NOTE: this file is almost 1GB)
+  - `python -m spacy download en_core_web_lg`
+- run: `python3 src/rdfqa.py -h`
 
 ## Problem Definition
 
