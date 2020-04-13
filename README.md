@@ -16,11 +16,19 @@ This software and paper was produced as the final project deliverable for COMP51
 ## Problem Definition
 
 - restricted to:
-  - active predicates only, no passive (i.e. 'loves' vs. 'loved by')
-  - only use entities/predicates that have english labels
+  - english only
+  - questions of the form `when/what/who/where/why ...`
   - 'used' predicates, as opposed to 'defined' predicates
     - used - `select ?p {?s ?p ?o}`
     - defined - `select distinct ?p {{select ?p {?p a rdf:Property}} union {select ?p { VALUES ?t { owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty } ?p a ?t}}`
+
+## TODO
+
+- [ ] - better exception handling
+- [ ] - use LSH for template matching
+- [ ] - move to objects or classes so don't hardcode tuple indexes
+- [ ] - different similarity methods
+- [ ] - query google to see if a given template makes sense
 
 ## Concepts
 
@@ -32,13 +40,14 @@ This software and paper was produced as the final project deliverable for COMP51
 - SPARQL is somewhat similar to SQL, and allows for create (CONSTRUCT) and read (SELECT), and also provides ASK (true/false) and DESCRIBE (summarize) operations
 - all facts in the knowledge graph are stored as 3-tuples called _triples_: (subject, predicate, object)
   - i.e. `(Ottawa, capitalOf, Canada)` and `(Earth, instanceOf, Planet)`
-- all defined entities are actually URIs, typically in the form of URLs (i.e. `http://dbpedia.org/property/Artist`)
-- variables are prefixed with `?`, i.e. `?label`, and can be referenced throughout query, both in the statement and to select projections (i.e. `select ?label {...}`)
+- to avoid ambiguity, every thing is referenced by a URI, typically in the form of URLs (i.e. `<http://dbpedia.org/property/Artist>`)
+- for common URIs, you can define a `PREFIX` short form (i.e. `PREFIX dbp: <http://dbpedia.org/property/>`)
 - every statement has 3 positional arguments rhat correspond to the triples parameters
   - i.e. `select * {1 2 3}`
   - 1 = subject
   - 2 = predicate
   - 3 = object
+- variables are prefixed with `?`, e.g. `?label`, and can be referenced throughout query, both in the statement and to select projections (i.e. `select ?label { ?s rdfs:label ?label }`, which returns all entities with labels)
 - for each statement, you either fix an argument with a URI or literal, or assign a variable
 - the SPARQL engine will find all matching triples in the graph, i.e.
   - `select * {?s <https://www.wikidata.org/wiki/Q5119> <https://www.wikidata.org/wiki/Q16>}`
@@ -48,6 +57,7 @@ This software and paper was produced as the final project deliverable for COMP51
 - for each conjuction (`.` or `;`), an inner join will occur, meaning all subjects that don't match the statement will be filtered out.
   - if you want to still include these records even though they might not have the property, you'll need to use `OPTIONAL` keyword before the statement
 - you can restrict the possible values using additional qualifiers, such as domain (input, subject), range (output, object), and datatype
+- some URIs just redirect to another entity, so you need to follow these if you want to see
 
 ### NLP
 

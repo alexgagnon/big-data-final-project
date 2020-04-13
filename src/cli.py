@@ -26,16 +26,16 @@ def init_parser() -> argparse.ArgumentParser:
         default=config.DEBUG
     )
     parser.add_argument(
-        "-u",
-        "--update",
-        help="updates the cache of prebuilt templates",
+        "-p",
+        "--properties",
+        help="updates the cache of properties in a knowledge base",
         action="store_true",
         default=config.UPDATE
     )
     parser.add_argument(
-        "-t",
-        "--templates",
-        help='update only the templates',
+        "-u",
+        "--update",
+        help='update the templates',
         action='store_true',
         default=False
     )
@@ -46,17 +46,26 @@ def init_parser() -> argparse.ArgumentParser:
         action="store",
     )
     parser.add_argument(
-        "-p",
-        "--prompt",
-        help="ask questions from the terminal",
-        action="store_true",
-        default=True
-    )
-    parser.add_argument(
         "-b",
         "--benchmark",
         help="runs benchmark tests",
         action="store_true",
         default=config.BENCHMARK
+    )
+    parser.add_argument(
+        '-s',
+        '--similarity',
+        help='define the similarity method used',
+        choices=['nlp', 'ld', 'lsh'],
+        action='store',
+        default=config.SIMILARITY_METRIC
+    )
+    parser.add_argument(
+        '-t',
+        '--threshold',
+        help='set the similarity threshold',
+        action='store',
+        type=float,
+        default=config.THRESHOLD
     )
     return parser

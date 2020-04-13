@@ -1,19 +1,21 @@
-from SPARQLWrapper import SPARQLWrapper, JSON
-from typing import Any, List, Literal, Tuple, Dict, Union
-from http.client import HTTPResponse
-from utils import get_all_properties, get_answer
-from templates import generate_templates_from_properties
-import json
-import pickle
-import argparse
-import logging
-import config
-import cli
-import sys
 import os
+import sys
+import cli
+import config
+import logging
+import argparse
+import pickle
+import json
+from templates import generate_templates_from_properties
+from utils import get_all_properties, get_answer
+from http.client import HTTPResponse
+from typing import Any, List, Literal, Tuple, Dict, Union
+from SPARQLWrapper import SPARQLWrapper, JSON
+
 
 logging.basicConfig(format='%(message)s')
 log = logging.getLogger("logger")
+log.info('Loaded imports...')
 
 sparql = SPARQLWrapper('http://dbpedia.org/sparql', returnFormat=JSON)
 
@@ -25,30 +27,7 @@ types = [
     ['datetime', ['datetime', 'date', 'time', 'gYear']],
 ]
 
-keywords = {
-    'string': [],
-    'boolean': [],
-    'integer': [],
-    'decimal': [],
-    'datetime': []
-}
-
-question_prefixes = ['who', 'what', 'where', 'when', 'why', 'how']
-yes_no_prefixes = [
-    'do', 'don\'t',
-    'does', 'doesn\'t',
-    'did', 'didn\'t',
-    'should', 'shouldn\'t',
-    'can', 'can\'t',
-    'could', 'couldn\'t',
-    'has', 'hasn\'t',
-    'have', 'haven\'t',
-    'are', 'aren\'t',
-    'was', 'wasn\'t',
-    'will', 'won\'t',
-    'would', 'wouldn\'t',
-    'is', 'isn\'t'
-]
+question_prefixes = ['who', 'what', 'where', 'when']
 
 
 def save_to_file(
@@ -58,11 +37,12 @@ def save_to_file(
     filename=None
 ) -> None:
     if filename == None:
-        log.error('Must provide filename! (NOTE: this is a dev error!')
+        log.error('Must provide filename! (NOTE: this is a developer error!')
         sys.exit(-1)
 
-    if not (as_json and as_pickle):
-        return
+    if not (as_json or as_pickle):
+        log.error('Must provide a file type (json or pickle)')
+        sys.exit(-1)
 
     if as_pickle:
         with open(f"{filename}.pkl", "wb") as f:
@@ -90,8 +70,8 @@ def load_properties_from_cache(ext: Union[Literal['json'], Literal['pkl']] = 'js
     return properties
 
 
-def load_templates_from_cache(ext: Union[Literal['json'], Literal['pkl']] = 'json', filename=config.TEMPLATES_FILENAME) -> Dict:
-    templates = {}
+def load_templates_from_cache(ext: Union[Literal['json'], Literal['pkl']] = 'json', filename=config.TEMPLATES_FILENAME) -> List:
+    templates = []
     try:
         with open(f'{filename}.{ext}') as f:
             if ext == 'json':
@@ -140,19 +120,21 @@ def main():
     args = parser.parse_args()
     log.setLevel(logging.DEBUG if args.debug else logging.INFO)
     config.DEBUG = args.debug
-    config.UPDATE = args.update
+    config.UPDATE = args.properties or args.update
     config.BENCHMARK = args.benchmark
+    config.SIMILARITY_METRIC = args.similarity
+    config.THRESHOLD = args.threshold
 
     log.debug(f'Started in DEBUG mode')
 
     properties = None
-    templates = {}
+    templates = []
 
-    if args.update or (args.templates and not has_properties_cache()):
+    if args.properties or (args.update and not has_properties_cache()):
         log.info('Updating properties')
         properties = update()
 
-    if args.templates or not has_templates_cache():
+    if args.update or not has_templates_cache():
         log.info('Regenerating templates from cached properties')
         if properties == None:
             properties = load_properties_from_cache()
@@ -162,7 +144,7 @@ def main():
         log.debug('Loading templates from cache')
         templates = load_templates_from_cache()
 
-    if args.benchmark and (args.question or args.prompt):
+    if args.benchmark and args.question:
         log.error('Cannot ask question and run benchmarks at the same time')
         sys.exit(-1)
 
@@ -174,19 +156,15 @@ def main():
         answer = get_answer(args.question, templates)
         log.info(answer)
 
-    elif args.prompt:
+    else:
         while True:
             try:
-                log.info('\n')
                 question = input("Ask a question:\n")
                 answer = get_answer(question, templates)
                 log.info(answer)
             except KeyboardInterrupt:
                 log.info('\nExiting')
                 sys.exit()
-
-    else:
-        parser.print_help()
 
 
 if __name__ == "__main__":

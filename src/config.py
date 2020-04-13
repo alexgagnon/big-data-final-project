@@ -1,6 +1,9 @@
-DEBUG = True
+DEBUG = False
 UPDATE = False
 BENCHMARK = False
+SIMILARITY_METRIC = 'nlp'
 PROPERTIES_FILENAME = 'properties'
 TEMPLATES_FILENAME = 'templates'
+MAX_TEMPLATE_SEARCHES = 10
+THRESHOLD = 0.9
 ENDPOINT = "http://dbpedia.org/sparql"

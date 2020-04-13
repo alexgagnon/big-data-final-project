@@ -40,4 +40,4 @@ https://nlp.town/blog/sentence-similarity/
 ## Future Work
 
 - detect language automatically (and use that in langMatches)
--
+- must follow redirects of entities when looking up their URIs from labels
