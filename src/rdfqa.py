@@ -1,7 +1,8 @@
 from SPARQLWrapper import SPARQLWrapper, JSON
-from typing import Any, List, Tuple, Dict
+from typing import Any, List, Literal, Tuple, Dict, Union
 from http.client import HTTPResponse
-from utils import generate_question, get_all_properties, get_answer
+from utils import get_all_properties, get_answer
+from templates import generate_templates_from_properties
 import json
 import pickle
 import argparse
@@ -54,8 +55,15 @@ def save_to_file(
     obj: Any,
     as_json=True,
     as_pickle=False,
-    filename=config.FILENAME
+    filename=None
 ) -> None:
+    if filename == None:
+        log.error('Must provide filename! (NOTE: this is a dev error!')
+        sys.exit(-1)
+
+    if not (as_json and as_pickle):
+        return
+
     if as_pickle:
         with open(f"{filename}.pkl", "wb") as f:
             pickle.dump(obj, f)
@@ -64,25 +72,41 @@ def save_to_file(
         with open(f"{filename}.json", "w", encoding="utf8") as f:
             json.dump(obj, f, ensure_ascii=False)
 
-    log.info('Saved to file')
+    log.info(f'Saved to file "{filename}.(json|pkl)"')
+
+
+def load_properties_from_cache(ext: Union[Literal['json'], Literal['pkl']] = 'json', filename=config.PROPERTIES_FILENAME) -> Dict:
+    properties = {}
+    try:
+        with open(f'{filename}.{ext}') as f:
+            if ext == 'json':
+                properties = json.load(f)
+            else:
+                properties = pickle.load(f)
+    except:
+        log.error(f'Could not load templates from {filename}.(json|pkl)')
+        sys.exit(-1)
+
+    return properties
+
+
+def load_templates_from_cache(ext: Union[Literal['json'], Literal['pkl']] = 'json', filename=config.TEMPLATES_FILENAME) -> Dict:
+    templates = {}
+    try:
+        with open(f'{filename}.{ext}') as f:
+            if ext == 'json':
+                templates = json.load(f)
+            else:
+                templates = pickle.load(f)
+    except:
+        log.error(f'Could not load templates from {filename}.(json|pkl)')
+        sys.exit(-1)
+
+    return templates
 
 
 def process_results(results, key) -> List[Tuple[str, str]]:
     return [(x["label"]['value'], x[key]['value']) for x in results]
-
-
-def generate_templates_from_properties(properties) -> List[Tuple[str, str]]:
-    questions = []
-
-    # for subtype, predicates in elements['predicates'].items():
-    #     if config.DEBUG and subtype != 'string':
-    #         log.debug(f'{subtype}: skipping in debug')
-    #         continue
-    #     for (predicate, uri) in predicates:
-    #         questions.append(
-    #             (f"who ??v?? ??s?? {predicate}", "select * where { ?s ?p ?o } limit 1"))
-
-    return questions
 
 
 def update() -> None:
@@ -90,12 +114,21 @@ def update() -> None:
     Updates the templates by querying the store and saving them to file
     """
 
+    # TODO: split this into redownload vs regenerate templates
     properties = get_all_properties()
-    save_to_file(properties)
-    generate_templates_from_properties(properties)
+    save_to_file(properties, filename=config.PROPERTIES_FILENAME)
+
+    return properties
 
 
-def has_cache(filename=config.FILENAME):
+def has_properties_cache(filename=config.PROPERTIES_FILENAME):
+    """
+    Checks if a local copy of the templates exist
+    """
+    return os.path.exists(f'{filename}.json') or os.path.exists(f'{filename}.pkl')
+
+
+def has_templates_cache(filename=config.TEMPLATES_FILENAME):
     """
     Checks if a local copy of the templates exist
     """
@@ -112,14 +145,22 @@ def main():
 
     log.debug(f'Started in DEBUG mode')
 
-    if args.update or not has_cache():
-        log.info('Updating templates')
-        update()
+    properties = None
+    templates = {}
+
+    if args.update or (args.templates and not has_properties_cache()):
+        log.info('Updating properties')
+        properties = update()
+
+    if args.templates or not has_templates_cache():
+        log.info('Regenerating templates from cached properties')
+        if properties == None:
+            properties = load_properties_from_cache()
+        templates = generate_templates_from_properties(properties)
+        save_to_file(templates, filename=config.TEMPLATES_FILENAME)
     else:
         log.debug('Loading templates from cache')
-
-    templates = [(
-        'What year was {s} born in', 'select ?result {<http://dbpedia.org/resource/J._K._Rowling> dbo:birthDate ?result}')]
+        templates = load_templates_from_cache()
 
     if args.benchmark and (args.question or args.prompt):
         log.error('Cannot ask question and run benchmarks at the same time')

@@ -6,6 +6,7 @@ from typing import List, Tuple
 from SPARQLWrapper import SPARQLWrapper, JSON
 from spacy import displacy
 from tabulate import tabulate
+from pathlib import Path
 
 log = logging.getLogger("logger")
 
@@ -57,45 +58,6 @@ PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dbp: <http://dbpedia.org/property/>
 """
 
-sparql_statements = {
-    'age': """select ?age {
-        dbr:Michael_Jackson dbo:birthDate ?birthdate .
-    dbr:Michael_Jackson dbo:deathDate ?deathdate .
-    bind(year(?deathdate) - year(?birthdate) - if(month(?deathdate) < month(?birthdate) || (month(?deathdate)=month(?birthdate) && day(?deathdate < day(?birthdate)), 1, 0) as ?age)}""",
-    'time': """f""",
-    'entity': """
-        ?s a rdf:Resource ;
-          rdfs:label ?label .
-        filter (
-            regex(str(?label), %s, 'i') &&
-            langMatches( lang(?label), "EN" )
-        )
-    """
-}
-
-question_templates = [
-    ('how old is {s}', sparql_statements['age']),
-    ('what age is {s}', sparql_statements['age']),
-    ('when did {o} occur', ""),
-    ('when did {o} happen', ""),
-    ('when will {o} occur', ""),
-    ('when will {o} happen', ""),
-    ('in what year did {o} happen', ""),
-    ('in what year did {o} occur', ""),
-    ('in what month did {o} happen', ""),
-    ('in what month did {o} occur', ""),
-    ('in what year will {o} happen', ""),
-    ('in what year will {o} occur', ""),
-    ('in what month will {o} happen', ""),
-    ('in what month will {o} occur', ""),
-    ('on what day did {o} happen', ""),
-    ('on what day did {o} occur', ""),
-    ('on what day will {o} happen', ""),
-    ('on what day will {o} occur'""),
-    ('when did {o} happen', ""),
-    ('when did {o} occur', ""),
-]
-
 
 def query(query_string: str, endpoint: str = config.ENDPOINT) -> SPARQLWrapper.query:
     """
@@ -133,7 +95,7 @@ def get_similarity(question: str, template: str) -> float:
 
 def get_similar_templates(question: str, templates, threshold=0.8) -> List[Tuple[str, str, str]]:
     valid_templates = []
-    for template, query in templates:
+    for template, keys, query in templates:
         similarity = get_similarity(question, template)
         if is_similar(similarity):
             valid_templates.append((similarity, template, query))
@@ -168,7 +130,7 @@ types = {
     'boolean': ['boolean'],
     'integer': ['integer', 'long'],
     'decimal': ['float', 'double'],
-    'date': ['date', 'gYear', 'gMonth', 'gDay'],
+    'date': ['datetime', 'date', 'gYear', 'gMonth', 'gDay'],
     'time': ['datetime', 'time'],
     'object': None,
     'annotation': None
@@ -217,7 +179,40 @@ def get_all_properties():
 
 
 def convert_question_to_template(question: str) -> str:
+
+    def replace_token(token) -> str:
+        new_token = token.text
+        if token.pos_ == 'VERB':
+            new_token = '{v}'
+        elif token.pos_ == 'AUX':
+            new_token = '{a}'
+
+        return new_token
+
     sentence = nlp(question)
+
+    template_tokens = []
+    template_tags = []
+
+    last_end = 0
+    for ent in sentence.ents:
+        template_tokens.extend([replace_token(token)
+                                for token in sentence[last_end:ent.start]])
+        template_tags.extend(
+            [token.pos_ for token in sentence[last_end:ent.start]])
+
+        template_tokens.append('{e}')
+        template_tags.append(ent.label_)
+
+        last_end = ent.end
+
+    template_tokens.extend([replace_token(token)
+                            for token in sentence[last_end:]])
+    template_tags.extend(
+        [token.tag_ for token in sentence[last_end:]])
+
+    tag_string = ' '.join(template_tags)
+    template_string = ' '.join(template_tokens)
 
     if config.DEBUG:
         token_table = [[
@@ -249,53 +244,19 @@ def convert_question_to_template(question: str) -> str:
             )
         )
 
-        displacy.render(sentence, style='dep')
-        displacy.render(sentence, style='ent')
+        log.debug('\n')
 
-    def replace_token(token) -> str:
-        new_token = token.text
-        if token.pos_ == 'VERB':
-            new_token = '{v}'
-        elif token.pos == 'AUX':
-            new_token = '{a}'
+        svg = displacy.render(sentence, style="dep")
+        output_path = Path("sentence-deps.svg")
+        output_path.open("w", encoding="utf-8").write(svg)
 
-        return new_token
+        svg = displacy.render(sentence, style="ent")
+        output_path = Path("sentence-ents.svg")
+        output_path.open("w", encoding="utf-8").write(svg)
 
-    template_tokens = []
-    template_tags = []
-
-    # i = 0
-    # while i < len(sentence):
-    #     for ent in sentence.ents:
-    #         if i == ent.start_char:
-    #             i += len(ent)
-    #             template_tokens.append('{e}')
-    #         else:
-    #             template_tokens.append(replace_token(sentence[i]))
-    #             i += 1
-
-    last_end = 0
-    for ent in sentence.ents:
-        template_tokens.extend([replace_token(token)
-                                for token in sentence[last_end:ent.start]])
-        template_tags.extend(
-            [token.pos_ for token in sentence[last_end:ent.start]])
-
-        template_tokens.append('{e}')
-        template_tags.append(ent.label_)
-
-        last_end = ent.end
-
-    template_tokens.extend([replace_token(token)
-                            for token in sentence[last_end:]])
-    template_tags.extend(
-        [token.tag_ for token in sentence[last_end:]])
-
-    tag_string = ' '.join(template_tags)
-    template_string = ' '.join(template_tokens)
-
-    log.debug(tag_string)
-    log.debug(template_string)
+        log.debug(question)
+        log.debug(tag_string)
+        log.debug(template_string)
 
     return template_string
 

@@ -11,6 +11,7 @@ This software and paper was produced as the final project deliverable for COMP51
 - [spaCy](https://spacy.io/) is used for NLP on the questions, and we need the english language model (NOTE: this file is almost 1GB)
   - `python -m spacy download en_core_web_lg`
 - run: `python3 src/rdfqa.py -h`
+- for development, you can set default CLI arguments in `src/config.py`
 
 ## Problem Definition
 

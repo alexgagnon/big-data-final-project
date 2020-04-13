@@ -1,5 +1,6 @@
 DEBUG = True
 UPDATE = False
 BENCHMARK = False
-FILENAME = 'properties'
+PROPERTIES_FILENAME = 'properties'
+TEMPLATES_FILENAME = 'templates'
 ENDPOINT = "http://dbpedia.org/sparql"

@@ -33,6 +33,13 @@ def init_parser() -> argparse.ArgumentParser:
         default=config.UPDATE
     )
     parser.add_argument(
+        "-t",
+        "--templates",
+        help='update only the templates',
+        action='store_true',
+        default=False
+    )
+    parser.add_argument(
         "-q",
         "--question",
         help="provide a question you want answered",
