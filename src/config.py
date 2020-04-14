@@ -6,4 +6,5 @@ PROPERTIES_FILENAME = 'properties'
 TEMPLATES_FILENAME = 'templates'
 MAX_TEMPLATE_SEARCHES = 10
 THRESHOLD = 0.9
+WORD_EMBEDDINGS_SIZE = 'lg'
 ENDPOINT = "http://dbpedia.org/sparql"

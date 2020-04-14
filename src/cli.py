@@ -68,4 +68,12 @@ def init_parser() -> argparse.ArgumentParser:
         type=float,
         default=config.THRESHOLD
     )
+    parser.add_argument(
+        '-w',
+        '--word',
+        help='define size of word embeddings vector (NOTE: must have installed the matching spacy file',
+        choices=['md', 'lg'],
+        action='store',
+        default=config.WORD_EMBEDDINGS_SIZE
+    )
     return parser

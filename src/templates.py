@@ -53,10 +53,9 @@ def generate_templates_from_properties(properties) -> List[Tuple[str, str]]:
 
     for t, type_properties in properties.items():
         if t not in question_templates:
-            log.info(f'Skipping {t}')
             continue
         else:
-            log.info(f'Generating templates for {t}')
+            log.info(f'Generating templates for {t} properties')
 
         for label, uri in type_properties:
             for template, query in question_templates[t]:

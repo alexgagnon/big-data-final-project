@@ -3,9 +3,9 @@ import sys
 import cli
 import config
 import logging
-import argparse
 import pickle
 import json
+from pytictoc import TicToc
 from templates import generate_templates_from_properties
 from utils import get_all_properties, get_answer
 from http.client import HTTPResponse
@@ -16,6 +16,8 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 logging.basicConfig(format='%(message)s')
 log = logging.getLogger("logger")
 log.info('Loaded imports...')
+
+timer = TicToc()
 
 sparql = SPARQLWrapper('http://dbpedia.org/sparql', returnFormat=JSON)
 
@@ -126,23 +128,32 @@ def main():
     config.THRESHOLD = args.threshold
 
     log.debug(f'Started in DEBUG mode')
+    log.info('Hit CTRL+D to exit')
 
     properties = None
     templates = []
 
     if args.properties or (args.update and not has_properties_cache()):
         log.info('Updating properties')
+        timer.tic()
         properties = update()
+        timer.toc('Cached properties in: ')
 
     if args.update or not has_templates_cache():
         log.info('Regenerating templates from cached properties')
+        timer.tic()
         if properties == None:
             properties = load_properties_from_cache()
         templates = generate_templates_from_properties(properties)
         save_to_file(templates, filename=config.TEMPLATES_FILENAME)
+        timer.toc('Templates created in: ')
     else:
         log.debug('Loading templates from cache')
         templates = load_templates_from_cache()
+
+    log.info(f'Loaded {len(templates)} templates')
+    log.info(
+        f"Using '{args.similarity}' as similarity metric, with threshold of {config.THRESHOLD}")
 
     if args.benchmark and args.question:
         log.error('Cannot ask question and run benchmarks at the same time')
@@ -162,9 +173,13 @@ def main():
                 question = input("Ask a question:\n")
                 answer = get_answer(question, templates)
                 log.info(answer)
-            except KeyboardInterrupt:
-                log.info('\nExiting')
-                sys.exit()
+                log.info('')
+            except KeyboardInterrupt as interrupt:
+                log.info('')
+                continue
+            except EOFError:
+                log.info('\nExiting\n')
+                sys.exit(0)
 
 
 if __name__ == "__main__":

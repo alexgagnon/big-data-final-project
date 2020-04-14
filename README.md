@@ -26,9 +26,14 @@ This software and paper was produced as the final project deliverable for COMP51
 
 - [ ] - better exception handling
 - [ ] - use LSH for template matching
-- [ ] - move to objects or classes so don't hardcode tuple indexes
-- [ ] - different similarity methods
+- [x] - edit distance similarity metric
+- [ ] - move to objects or classes so we don't hardcode tuple indexes
 - [ ] - query google to see if a given template makes sense
+- [ ] - fix entity URIs data structure
+- [ ] - waiting spinner
+- [ ] - also find properties redirects (i.e. 'born' should redirect to 'birth date')
+- [ ] - benchmark against other Simple QALD datasets
+- [ ] - instead of
 
 ## Concepts
 
@@ -66,3 +71,4 @@ This software and paper was produced as the final project deliverable for COMP51
   - tokenization - identifying pieces of text, like entities (nouns), verbs, adjectives, etc.
   - stemming - finding the 'stem' of a word, useful to find variations of a word (i.e. comput is the stem of compute, computed, computer, computing, etc.). The stem need not be a real word
   - lemmatization - similar to 'stemming', but the root is actually a word (i.e. compute is the lemma of computer, computed, computing, etc.)
+- one crucial piece is to be able to identify entities ('things'), which might span multiple tokens (i.e. J. K. Rowling is a single entity)

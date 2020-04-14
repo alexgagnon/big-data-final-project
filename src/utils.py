@@ -9,6 +9,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from spacy import displacy
 from tabulate import tabulate
 from pathlib import Path
+from errors import SPARQLQueryError
 
 log = logging.getLogger("logger")
 
@@ -99,17 +100,16 @@ def query(query_string: str, endpoint: str = config.ENDPOINT) -> SPARQLWrapper.q
     """
     Performs a query
     """
-    start = timer.tic()
     query_string = f"""
     {prefixes}
     {query_string}
     """
+
     if sparql.endpoint != endpoint:
         sparql.endpoint = endpoint
     sparql.setQuery(query_string)
     try:
         response = sparql.query()
-        timer.toc('Query took: ')
         return response
     except HTTPError as error:
         log.info('SPARQL query error')
@@ -132,7 +132,7 @@ def get_similar_templates(question: str, templates, threshold=0.8) -> List[Tuple
 
 def check_invalid_query(response: HTTPResponse) -> bool:
     if is_incomplete_query(response) or is_partial_query(response):
-        raise Exception
+        raise SPARQLQueryError
 
     return False
 
@@ -301,7 +301,7 @@ def convert_question_to_template(question: str) -> Tuple[str, List[str]]:
     return (template_string, entities)
 
 
-def get_uri(label: str) -> Union[None, str]:
+def get_uri(label: str) -> Union[None, List[str]]:
     log.debug(f'Getting uri for {label}')
     result = query(f"""SELECT DISTINCT * WHERE {{
         ?labelUri rdfs:label ?label .
@@ -312,22 +312,20 @@ def get_uri(label: str) -> Union[None, str]:
     bindings = parse_query_response(result)  # can throw Exception
     if len(bindings) == 0:
         log.info(f'No matching uri for {label}')
+        return None
 
     # a label should have a URI associated with it (unless there is no match)
     # HOWEVER, a label might reference a URI that redirects to the real entity
     # i.e. J.K. Rowling is a valid label, but returns J.K._Rowling, which
     # redirects to the real entity, J. K. Rowling (J._K._Rowling)
     # SO, return the URI UNLESS a redirect URI is present
-    uri = get_result_value(bindings[0], key='labelUri')
-    for binding in bindings:
-        if 'redirectUri' not in binding:
-            continue
-        redirectUri = get_result_value(binding, key='redirectUri')
-        if redirectUri:
-            uri = redirectUri
-            break
+    uris = []
 
-    return uri
+    for binding in bindings:
+        key = 'labelUri' if 'redirectUri' not in binding else 'redirectUri'
+        uris.append(get_result_value(binding, key=key))
+
+    return uris
 
 
 def get_result_value(result, key="result") -> str:
@@ -335,26 +333,32 @@ def get_result_value(result, key="result") -> str:
 
 
 def replace_uris_in_query(template, uris) -> str:
-    log.debug(f'{template}\n{uris}\n\n')
-    return template.format(*uris)
+    return template.format(uris)
 
 
 def get_answer(question: str, templates) -> List[str]:
-    log.info('Converting question to template')
+    # get question as template
     timer.tic()
     question_template, entities = convert_question_to_template(question)
-    timer.toc(f'Got template "{question_template}" in: ')
-    log.info(
-        f'Searching through {len(templates)} templates using {config.SIMILARITY_METRIC} similarity metric')
+    timer.toc(
+        f'Converted question to "{question_template}" with entities {entities} in: ')
+
+    # get URIs for entities
+    # TODO: not a good way to handle multiple entities...
+    timer.tic()
+    uris = [get_uri(entity) for entity in entities]
+    if uris == [None]:
+        return []
+
+    timer.toc(f'Found URIs {uris} for entities {entities} in:')
+
+    #  find similar templates
+    log.info('Getting similar templates...')
     timer.tic()
     templates = get_similar_templates(question_template, templates)
     timer.toc(
-        f'Found {len(templates)} with a similarity above threshold of {config.THRESHOLD} in:'
+        f'Found {len(templates)} similar templates in:'
     )
-
-    timer.tic()
-    uris = [get_uri(entity) for entity in entities]
-    timer.toc(f'Found URIs for entities {entities} in:')
 
     if len(templates) == 0:
         log.info('Could not find any similar templates!')
@@ -367,24 +371,30 @@ def get_answer(question: str, templates) -> List[str]:
 
     answers = []
 
-    for index, template in enumerate(templates):
-        if index >= config.MAX_TEMPLATE_SEARCHES:
-            log.info('Maximum iterations of templates exceeded, no results :(')
-            return []
+    # try various entity URIs and templates
+    # TODO: bad way of assigning URIs to specific entities... nested lists
+    iterations = 0
+    for template in templates:
+        for entities in uris:
+            for uri in entities:
+                if iterations >= config.MAX_TEMPLATE_SEARCHES:
+                    log.info(
+                        'Maximum iterations of templates exceeded, no results :(')
+                    return []
 
-        log.debug(template)
-        query_string = replace_uris_in_query(template[2], uris)
-        log.debug(query_string)
-        results = query(query_string)
+                iterations += 1
+                query_string = replace_uris_in_query(template[2], uri)
+                log.debug(query_string)
+                results = query(query_string)
 
-        try:
-            bindings = parse_query_response(results)
-            if len(bindings) == 0:
-                log.debug(f'No matches for {query_string}')
-                continue
+                try:
+                    bindings = parse_query_response(results)
+                    if len(bindings) == 0:
+                        continue
 
-            return [get_result_value(x) for x in bindings]
-        except:
-            log.info('Could not find matching entity URI')
+                    return [get_result_value(x) for x in bindings]
+                except SPARQLQueryError as error:
+                    log.info('Could not find matching entity URI')
+                    log.debug(error)
 
     return answers

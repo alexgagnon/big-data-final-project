@@ -1,0 +1,2 @@
+class SPARQLQueryError(Exception):
+    pass
