@@ -22,6 +22,10 @@ This software and paper was produced as the final project deliverable for COMP51
     - used - `select ?p {?s ?p ?o}`
     - defined - `select distinct ?p {{select ?p {?p a rdf:Property}} union {select ?p { VALUES ?t { owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty } ?p a ?t}}`
 
+## Example
+
+![example terminal output](terminal_output.gif)
+
 ## TODO
 
 - [ ] - better exception handling
