@@ -33,8 +33,8 @@ def init_parser() -> argparse.ArgumentParser:
         default=config.UPDATE
     )
     parser.add_argument(
-        "-u",
-        "--update",
+        "-t",
+        "--templates",
         help='update the templates',
         action='store_true',
         default=False
@@ -53,16 +53,16 @@ def init_parser() -> argparse.ArgumentParser:
         default=config.BENCHMARK
     )
     parser.add_argument(
-        '-s',
-        '--similarity',
-        help='define the similarity method used',
+        '-m',
+        '--metric',
+        help='define the similarity metric used',
         choices=['nlp', 'ld', 'lsh'],
         action='store',
         default=config.SIMILARITY_METRIC
     )
     parser.add_argument(
-        '-t',
-        '--threshold',
+        '-s',
+        '--similarity',
         help='set the similarity threshold',
         action='store',
         type=float,

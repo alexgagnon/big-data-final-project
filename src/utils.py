@@ -1,6 +1,7 @@
 import spacy
 import logging
 import config
+import re
 from pytictoc import TicToc
 from urllib.error import HTTPError
 from http.client import HTTPResponse
@@ -9,13 +10,16 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from spacy import displacy
 from tabulate import tabulate
 from pathlib import Path
-from errors import SPARQLQueryError
+from errors import SPARQLQueryError, SPARQLQueryTooLarge
 
 log = logging.getLogger("logger")
 
 sparql = SPARQLWrapper(config.ENDPOINT, returnFormat=JSON)
 
 nlp = spacy.load('en_core_web_lg')
+
+regex = re.compile('<.*>')
+
 
 timer = TicToc()
 
@@ -52,33 +56,6 @@ if config.SIMILARITY_METRIC == 'ld':
     get_similarity = ld_similarity
 
 
-used_predicates = f"""
-select distinct ?predicate ?label where {{
-  ?subject ?predicate ?object .
-  ?predicate rdfs:label ?label
-}}
-order by ?predicate
-"""
-
-declared_predicates = f"""
-select ?p ?label {{
-  {{
-    select ?p {{
-      ?p a rdf:Property
-  }}
-  union
-  {{
-    select ?p {{
-      VALUES ?t {{
-        owl:ObjectProperty owl:DatatypeProperty owl:AnnotationProperty
-      }}
-      ?p a ?t
-    }} .
-  ?p rdfs:label ?label .
-  filter langMatches( lang(?label), "EN" )
-}}
-"""
-
 prefixes = """
 PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wds: <http://www.wikidata.org/entity/statement/>
@@ -94,6 +71,27 @@ PREFIX dbr: <http://dbpedia.org/resource/>
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dbp: <http://dbpedia.org/property/>
 """
+
+
+def paged_query(query_string: str) -> SPARQLWrapper.query:
+    limit = 10000
+    results = []
+    iteration = 0
+    while True:
+        sparql.setQuery(
+            f'{query_string} limit {limit} offset {iteration * limit}'
+        )
+        query_results = sparql.query()
+        results.extend(query_results.convert()['results']['bindings'])
+        try:
+            is_incomplete_query(query_results.response)
+            break
+        except SPARQLQueryTooLarge:
+            iteration += 1
+            log.debug(
+                f'Incomplete response, fetching next {limit} at offset: {limit * iteration}')
+
+    return results
 
 
 def query(query_string: str, endpoint: str = config.ENDPOINT) -> SPARQLWrapper.query:
@@ -131,16 +129,13 @@ def get_similar_templates(question: str, templates, threshold=0.8) -> List[Tuple
 
 
 def check_invalid_query(response: HTTPResponse) -> bool:
-    if is_incomplete_query(response) or is_partial_query(response):
-        raise SPARQLQueryError
-
-    return False
+    return not is_incomplete_query(response) or is_partial_query(response)
 
 
 def is_incomplete_query(response: HTTPResponse) -> bool:
     incomplete = response.getheader('X-SPARQL-MaxRows') != None
     if incomplete:
-        log.warn('Query response too large!')
+        raise SPARQLQueryTooLarge
     return incomplete
 
 
@@ -162,51 +157,63 @@ types = {
     'decimal': ['float', 'double'],
     'date': ['datetime', 'date', 'gYear', 'gMonth', 'gDay'],
     'time': ['datetime', 'time'],
+    'property': None,
     'object': None,
     'annotation': None
 }
 
 
-def get_all_properties():
-    key = "property"
-    properties = {}
+# def get_all_properties():
+#     key = "p"
+#     properties = {}
 
-    for property_type, sub_types in types.items():
-        log.debug('Querying for %s', property_type)
-        if property_type not in properties:
-            properties[property_type] = []
+# for property_type, sub_types in types.items():
+#     log.debug('Querying for %s', property_type)
+#     if property_type not in properties:
+#         properties[property_type] = []
 
-        # datatypes
-        if property_type not in ['object', 'annotation']:
-            for sub_type in sub_types:
-                query = f"""select distinct ?{key} ?label where {{
-                                ?{key} a owl:DatatypeProperty ;
-                                rdfs:range xsd:{sub_type} ;
-                                rdfs:label ?label
-                                filter langMatches( lang(?label), "EN" )
-                        }}"""
-                sparql.setQuery(query)
-                results = sparql.query()
-                try:
-                    bindings = parse_query_response(results)
-                    properties[property_type].extend(
-                        process_results(bindings, key))
-                except Exception:
-                    continue
+#     # datatypes
+#     if property_type not in ['object', 'annotation', 'property']:
+#         for sub_type in sub_types:
+#             query = f"""select distinct ?{key} ?label where {{
+#                             ?{key} a owl:DatatypeProperty ;
+#                             rdfs:range xsd:{sub_type} ;
+#                             rdfs:label ?label
+#                             filter langMatches( lang(?label), "EN" )
+#                     }}"""
+#             sparql.setQuery(query)
+#             results = sparql.query()
+#             try:
+#                 bindings = parse_query_response(results)
+#                 properties[property_type].extend(
+#                     process_results(bindings, key))
+#             except Exception:
+#                 continue
 
-        #  objects and annotations
-        else:
-            query = f"""select distinct ?{key} ?label where {{
-                            ?{key} a owl:{property_type.capitalize()}Property ;
-                            rdfs:label ?label
-                            filter langMatches( lang(?label), "EN" )
-                    }}"""
-            sparql.setQuery(query)
-            results = sparql.query()
-            bindings = parse_query_response(results)
-            properties[property_type] = process_results(bindings, key)
+#     elif property_type == 'property':
+#         query = f"""select distinct ?{key} ?label {{
+#                         ?p a rdf:Property ;
+#                         rdfs:label ?label
+#                         filter langMatches( lang(?label), "EN" )
+#                 }}"""
+#         sparql.setQuery(query)
+#         results = sparql.query()
+#         bindings = parse_query_response(results)
+#         properties[property_type] = process_results(bindings, key)
 
-    return properties
+#     #  objects and annotations
+#     else:
+#         query = f"""select distinct ?{key} ?label where {{
+#                         ?{key} a owl:{property_type.capitalize()}Property ;
+#                         rdfs:label ?label
+#                         filter langMatches( lang(?label), "EN" )
+#                 }}"""
+#         sparql.setQuery(query)
+#         results = sparql.query()
+#         bindings = parse_query_response(results)
+#         properties[property_type] = process_results(bindings, key)
+
+# return properties
 
 
 def parse_query_response(query_results: SPARQLWrapper.query) -> List[str]:
@@ -215,14 +222,15 @@ def parse_query_response(query_results: SPARQLWrapper.query) -> List[str]:
     return bindings
 
 
+def replace_token(token) -> str:
+    new_token = token.text
+    if token.pos_ == 'VERB':
+        new_token = '{v}'
+
+    return new_token
+
+
 def convert_question_to_template(question: str) -> Tuple[str, List[str]]:
-
-    def replace_token(token) -> str:
-        new_token = token.text
-        if token.pos_ == 'VERB':
-            new_token = '{v}'
-
-        return new_token
 
     sentence = nlp(question)
 
@@ -302,16 +310,19 @@ def convert_question_to_template(question: str) -> Tuple[str, List[str]]:
 
 
 def get_uri(label: str) -> Union[None, List[str]]:
-    log.debug(f'Getting uri for {label}')
+    log.debug(f'Getting uris for {label}')
     result = query(f"""SELECT DISTINCT * WHERE {{
         ?labelUri rdfs:label ?label .
-        filter ( ?label = "{label}"@en )
+        FILTER (
+            langMatches(lang(?label), "EN") &&
+            CONTAINS(LCASE(STR(?label)), "{label}")
+        )
         optional {{?labelUri dbo:wikiPageRedirects ?redirectUri}}
     }}""")
 
     bindings = parse_query_response(result)  # can throw Exception
     if len(bindings) == 0:
-        log.info(f'No matching uri for {label}')
+        log.debug(f'No matching uri for {label}')
         return None
 
     # a label should have a URI associated with it (unless there is no match)
@@ -334,6 +345,43 @@ def get_result_value(result, key="result") -> str:
 
 def replace_uris_in_query(template, uris) -> str:
     return template.format(uris)
+
+
+def get_answer_property(question, templates):
+    question_template, entities = convert_question_to_template(question)
+    try:
+        uris = [get_uri(entity) for entity in entities]
+        if uris == [None]:
+            return []
+
+        templates = get_similar_templates(question_template, templates)
+
+        if len(templates) == 0:
+            return []
+
+        answers = []
+
+        # try various entity URIs and templates
+        # TODO: bad way of assigning URIs to specific entities... nested lists
+        iterations = 0
+        for template in templates:
+            for entities in uris:
+                if entities == None:
+                    return None
+                for entity_uri in entities:
+                    if iterations >= config.MAX_TEMPLATE_SEARCHES:
+                        return None
+
+                    iterations += 1
+                    query_string = replace_uris_in_query(
+                        template[2], entity_uri)
+                    match = regex.match(query_string)
+                    if match != None:
+                        answers.append(match.group())
+
+        return answers
+    except Exception as ex:
+        log.debug(ex.with_traceback)
 
 
 def get_answer(question: str, templates) -> List[str]:
@@ -376,14 +424,14 @@ def get_answer(question: str, templates) -> List[str]:
     iterations = 0
     for template in templates:
         for entities in uris:
-            for uri in entities:
+            for entity_uri in entities:
                 if iterations >= config.MAX_TEMPLATE_SEARCHES:
                     log.info(
                         'Maximum iterations of templates exceeded, no results :(')
                     return []
 
                 iterations += 1
-                query_string = replace_uris_in_query(template[2], uri)
+                query_string = replace_uris_in_query(template[2], entity_uri)
                 log.debug(query_string)
                 results = query(query_string)
 

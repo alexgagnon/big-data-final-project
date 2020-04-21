@@ -7,7 +7,9 @@ import pickle
 import json
 from pytictoc import TicToc
 from templates import generate_templates_from_properties
-from utils import get_all_properties, get_answer
+from properties import get_all_properties, get_filtered_properties
+from benchmark import run_benchmark
+from utils import get_answer
 from http.client import HTTPResponse
 from typing import Any, List, Literal, Tuple, Dict, Union
 from SPARQLWrapper import SPARQLWrapper, JSON
@@ -20,16 +22,6 @@ log.info('Loaded imports...')
 timer = TicToc()
 
 sparql = SPARQLWrapper('http://dbpedia.org/sparql', returnFormat=JSON)
-
-types = [
-    ['string', ['string']],
-    ['boolean', ['boolean']],
-    ['integer', ['integer', 'long']],
-    ['decimal', ['float', 'double']],
-    ['datetime', ['datetime', 'date', 'time', 'gYear']],
-]
-
-question_prefixes = ['who', 'what', 'where', 'when']
 
 
 def save_to_file(
@@ -122,29 +114,36 @@ def main():
     args = parser.parse_args()
     log.setLevel(logging.DEBUG if args.debug else logging.INFO)
     config.DEBUG = args.debug
-    config.UPDATE = args.properties or args.update
+    config.UPDATE = args.properties or args.templates
     config.BENCHMARK = args.benchmark
-    config.SIMILARITY_METRIC = args.similarity
-    config.THRESHOLD = args.threshold
+    config.SIMILARITY_METRIC = args.metric
+    config.THRESHOLD = args.similarity
 
     log.debug(f'Started in DEBUG mode')
     log.info('Hit CTRL+D to exit')
 
     properties = None
+    filtered_properties = None
     templates = []
 
-    if args.properties or (args.update and not has_properties_cache()):
+    if args.properties or (args.templates and not has_properties_cache()):
         log.info('Updating properties')
         timer.tic()
         properties = update()
         timer.toc('Cached properties in: ')
 
-    if args.update or not has_templates_cache():
+    if args.templates or not has_templates_cache():
         log.info('Regenerating templates from cached properties')
         timer.tic()
         if properties == None:
             properties = load_properties_from_cache()
-        templates = generate_templates_from_properties(properties)
+
+        log.info(f'{len(properties)} properties found')
+
+        filtered_properties = get_filtered_properties(properties, top_kth=1000)
+
+        log.info(f'Reduced to {len(filtered_properties)} after filtering')
+        templates = generate_templates_from_properties(filtered_properties)
         save_to_file(templates, filename=config.TEMPLATES_FILENAME)
         timer.toc('Templates created in: ')
     else:
@@ -153,7 +152,7 @@ def main():
 
     log.info(f'Loaded {len(templates)} templates')
     log.info(
-        f"Using '{args.similarity}' as similarity metric, with threshold of {config.THRESHOLD}")
+        f"Using '{config.SIMILARITY_METRIC}' as similarity metric, with threshold of {config.THRESHOLD}")
 
     if args.benchmark and args.question:
         log.error('Cannot ask question and run benchmarks at the same time')
@@ -161,7 +160,7 @@ def main():
 
     elif args.benchmark:
         log.info('Running benchmarks...')
-        log.info('TODO')
+        run_benchmark(templates)
 
     elif args.question:
         answer = get_answer(args.question, templates)

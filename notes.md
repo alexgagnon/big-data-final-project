@@ -41,3 +41,7 @@ https://nlp.town/blog/sentence-similarity/
 
 - detect language automatically (and use that in langMatches)
 - must follow redirects of entities when looking up their URIs from labels
+
+## Results
+
+Cached properties in: 30509.059538 seconds.
