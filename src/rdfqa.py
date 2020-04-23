@@ -118,6 +118,7 @@ def main():
     config.BENCHMARK = args.benchmark
     config.SIMILARITY_METRIC = args.metric
     config.THRESHOLD = args.similarity
+    config.FIGURES = args.figures
 
     log.debug(f'Started in DEBUG mode')
     log.info('Hit CTRL+D to exit')
@@ -126,6 +127,7 @@ def main():
     filtered_properties = None
     templates = []
 
+    # update properties if asked or if we're trying to update templates without a properties.json file
     if args.properties or (args.templates and not has_properties_cache()):
         log.info('Updating properties')
         timer.tic()
@@ -140,10 +142,11 @@ def main():
 
         log.info(f'{len(properties)} properties found')
 
-        filtered_properties = get_filtered_properties(properties, top_kth=1000)
+        filtered_properties = get_filtered_properties(
+            properties)
 
-        log.info(f'Reduced to {len(filtered_properties)} after filtering')
         templates = generate_templates_from_properties(filtered_properties)
+        log.info(f'Generated {len(templates)} question templates')
         save_to_file(templates, filename=config.TEMPLATES_FILENAME)
         timer.toc('Templates created in: ')
     else:

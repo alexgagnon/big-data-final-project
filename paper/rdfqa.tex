@@ -1,0 +1,202 @@
+\documentclass[sigplan,screen]{acmart}
+\usepackage{listings}
+
+%%
+%% \BibTeX command to typeset BibTeX logo in the docs
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    \normalfont B\kern-0.5em{\scshape i\kern-0.25em b}\kern-0.8em\TeX}}}
+
+\begin{document}
+
+\title{Generating Simple Language-Based Templates from a Knowledge Graph to Completely Cover its Question-Answer Space.}
+
+\author{Alex Gagnon}
+\email{alex.gagnon@carleton.ca}
+\affiliation{%
+  \institution{Carleton University}
+  \streetaddress{1125 Colonel By Drive}
+  \city{Ottawa}
+  \state{Ontario}
+  \postcode{K1S-5B6}
+}
+
+\renewcommand{\shortauthors}{Gagnon}
+
+\begin{CCSXML}
+  <ccs2012>
+     <concept>
+         <concept_id>10002951.10002952.10003219</concept_id>
+         <concept_desc>Information systems~Information integration</concept_desc>
+         <concept_significance>300</concept_significance>
+         </concept>
+     <concept>
+         <concept_id>10002951.10003227.10003351</concept_id>
+         <concept_desc>Information systems~Data mining</concept_desc>
+         <concept_significance>300</concept_significance>
+         </concept>
+     <concept>
+         <concept_id>10002951.10003260.10003309</concept_id>
+         <concept_desc>Information systems~Web data description languages</concept_desc>
+         <concept_significance>500</concept_significance>
+         </concept>
+     <concept>
+         <concept_id>10002951.10003317</concept_id>
+         <concept_desc>Information systems~Information retrieval</concept_desc>
+         <concept_significance>500</concept_significance>
+         </concept>
+     <concept>
+         <concept_id>10010147.10010178.10010179</concept_id>
+         <concept_desc>Computing methodologies~Natural language processing</concept_desc>
+         <concept_significance>500</concept_significance>
+         </concept>
+   </ccs2012>
+\end{CCSXML}
+
+\ccsdesc[300]{Information systems~Information integration}
+\ccsdesc[300]{Information systems~Data mining}
+\ccsdesc[500]{Information systems~Web data description languages}
+\ccsdesc[500]{Information systems~Information retrieval}
+\ccsdesc[500]{Computing methodologies~Natural language processing}
+
+\keywords{datasets, information retrieval, data description languages}
+
+\maketitle
+
+\section*{Abstract}
+
+Given any store of information, for it to be usable a person or process must be able to query the store to extract data in a meaningful way. Compared to computer processes however, humans are much looser with the mechanism in which they perform the query. A person structures their query as a question in some human language, whether in text or vocally. Converting this natural language question into something that can be executed against the data store and return the desired response is known as Question-Answering. Two common ways of completing this task are through semantic parsing and templating. Semantic parsing decomposes the sentence into its grammatical substructures, allowing the parser to identify tokens such as nouns and verbs and use them to create a structured query to the store. Templating involves pre-generating pairs of natural language sentences and the query that represents the sentence in the datastore, comparing the given question to the set of templates, and selecting the most similar one to execute. Semantic parsing suffers from having a large learning period and is prone to bias, while templating can have limited coverage as it is done using a specific text corpus. We present two contributions: a mechanism to produce a large number of question templates, and RDFQA, a Python-based CLI application with focus on user experience that performs Question-Answering tasks
+
+\section{Introduction}
+
+The domain of Question-Answering boils down to an inconsistency between the unstructured natural language-based question and the structured schema of the knowledge base that contains the answer. For example, given the question "where was Michael Jordan born?", a system is expected to be able to return the answer "Brooklyn, New York" in a timely manner. The concept of question and answering itself is vital for two reasons. First, a store containing potentially the entirety of collected human knowledge is, by itself, useless. A mechanism to extract facts in a generic manner, such as through voice or written text, is essential to give meaning to the data. Secondly, as more information is collected over time, the search space containing the possible answers becomes enormous. A strategy for question answering that performs quickly and accurately at scale, ideally in near-real time, is the desired outcome for most applications.
+
+When a question is asked in human language, a processing step must convert its semantics into a formal query suitable to be run against a datastore such as DBpedia, Freebase, or Wikidata. The information in these stores is represented by a graph containing facts in the form of subject/predicate/object triples, known as RDF (Resource Description Framework). For example, (Michael Jordan, birthPlace, Brooklyn NY), is an RDF triple, where "Michael Jordan" is the subject, "birthPlace" is the predicate, and "Brooklyn, New York" is the object. The primary mechanism for accessing these knowledge graphs is through specialized query languages (e.g. SPARQL), that traverse the graph and retrieve triples matching the request.
+
+A failure to convert the question into the appropriate formal query will lead to incorrect answers. The likelihood of an erroneous conversion increases as the question becomes more complex. This can occur in several situations. Firstly, when a question is composed of multiple clauses (i.e. a conjuctive 'and', or through nested questions where the answer of one clause is used sequentially in the next). Secondly, the intricacies of the language itself can cause ambiguities, such as when pronoun usage makes the subject difficult or impossible to identify (e.g. 'John has a son named Tom, and he went to Harvard'.)
+
+There are two standard approaches to solving this conversion problem: semantic parsing and templates.
+
+\textbf{Semantic Parsing}. Semantic parsing deconstructs the question into one or more subgraphs based on the grammatical and syntactical structure of the sentence, and then attempts to find matches in the knowledge graph. This strategy can be effective as it is, in essence, 'real-time' and does not require a large bank of previously computed examples. However, it is prone to incorrect subgraph creation. This is due to the fact that neural networks are typically used, which require a large and diverse set of training data to account for all topologies of subgraphs that exist in the knowledge base.
+
+\textbf{Templates}. Template-based approaches instead try to convert the question into one or more simpler questions, which can be compared for similarity to a set of previously generated templates. Each of the question templates has an associated query which when executed against the knowledge graph will return the answer to the question. For example, a question such as 'what is the name of the person who has won the most NBA MVP awards ever' can be simplified to 'who won the most NBA MVP awards'. This simpler question can be compared against a set of templates, and if one is match is found, the associated query can be executed to find the answer. Templates have been found to be effective in returning high quality answers in a timely fashion, however they often suffer in coverage. Zheng et al. were able to outperform state-of-the-art implementations using binary templates. However, the source of the natural language templates was gathered through examining a single text corpus. As such, it suffered a lack of generalizability to other sources. It also uses neural networks to create the simplified questions, which as previously mentioned depends on having accurate and diverse training data. This requirement can be limiting given that only a sole source in a specific domain is used.
+
+We seek to address the issues of limited coverage for template-based approaches by instead generating natural language/query pattern pairs starting from the knowledge base itself. By traversing the triple graph, we can effectively create simple questions that map to the current triple. For example, given the triple (Michael Jordan, birthPlace, Brooklyn), we can create simple questions to represent it such as 'where was Michael Jordan born' or 'which city was Michael Jordan born in', and its corresponding SPARQL queries 'Michael Jordan, birthPlace, <?>'. Other more general questions stemming from the subjects and objects can also be produced, such as 'who is Michael Jordan', and 'where is Brooklyn', which further complete the search space. The use of question words (e.g. when, where, who, what, why, how) can be injected based on the types of entities and classification of predicates found in the triple. Similar 'bottom-up' approaches of starting from the knowledge base itself include work by \citeauthor{generating-factoids}, where a large corpora of question-answer pairs was created. The goal in this case, however, was to produce question-answer pairs for use in benchmarking and not for use as templates.
+
+In order to confirm whether or not the repository of templates we produce are accurate question-query pairs, we also created RDFQA, a CLI-based Question-Answering application. The application is focused on being user-friendly, allowing a user to enter a natural language question. It also provides tuning parameters to allow for easily configuring the operation of the application.
+
+\textbf{Contributions}
+
+\begin{itemize}
+    \item a collection of template pairs, consisting of a question template and the structured SPARQL query that it represents
+    \item RDFQA, a user-focused Question-Answer application that uses the generated template pairs
+\end{itemize}
+
+\section{Background}
+
+Question-Answering involves numerous domains of computer science. First, natural language processing (NLP), is required to semantically analyse a question. Second, resource description frameworks (RDF) such as OWL provide the necessary tools to create a semantic web, where data is structured in such a way that it is easily consumed by computers. Third, the RDF records must be stored in a database that is conducive to handling enormous amounts of data by storing them as graphs (known as Knowledge Graphs or Knowledge Bases). Fourth, specialized query languages are used to interact with the knowledge graphs, notably SPARQL, an SQL-like language that is terse yet expressive enough to query the vast amounts of data in a store. We will provide additional details of these subjects in the following sections.
+
+\subsection{Natural Language Processing}
+
+Natural language processing is the field of Artificial Intelligence that allows computers to operate on human languages. It is not trivial to dissect some corpus or sentence into it's constituent parts, but it is a necessary step for understanding it's meaning. There are numerous goals in NLP depending on which parts of text are of interest:
+\begin{itemize}
+    \item \textbf{Tokenization} - identifying pieces of text, like entities (nouns), verbs, adjectives, etc., also known as Parts Of Speech.
+    \item \textbf{Stemming} - finding the 'stem' of a word, useful to identify variations of a word (i.e. 'comput' is the stem of compute, computed, computer, computing, etc.). The stem need not be a real word.
+    \item \textbf{Lemmatization} - similar to 'stemming', but the root is actually a word (i.e. 'compute' is the lemma of computer, computed, computing, etc.)
+\end{itemize}
+
+For example, running the sentence 'where was Michael Jordan born' through an NLP tokenizer might identify that 'Michael Jordan' is a noun (an entity representing a thing), 'born' is a verb, 'where' is a preposition, etc. See Table \ref{table:tokenization} for example output from spaCy, a common Python NLP library.
+
+\begin{table}[]
+\caption{Sample output of the phrase 'where was Michael Jordan born' being entered into spaCy's \texttt{nlp} function}
+\label{table:tokenization}
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Text    & Lemma   & Part Of Speech & Tag  & Stop Word \\ \hline
+where   & where   & adverb         & WRB  & true      \\ \hline
+was     & be      & auxiliary      & VBD  & true      \\ \hline
+Michael & Michael & proper noun    & NNP  & false     \\ \hline
+Jordan  & Jordan  & proper noun    & NNP  & false     \\ \hline
+born    & bear    & verb           & VERB & false     \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Resource Description Framework}
+
+With so much content available on the Internet, it becomes crucially important to have a well-defined and agreed-upon standard for representing information. In the case of structured data, RDF is the most common framework for linking that data together, giving it semantic meaning. The RDF specification groups together a subject, a property (also known as a predicate), and an object into a single tuple known as a 'statement' or 'triple'. Elaborating on the previous example, (Michael Jordan, birth place, Brooklyn), is one such statement. This statement by itself is useful, however the true power of semantically linked data is that each of these elements can be referenced by other statements, forming a web of interconnected entities. For example, other statements linked together by these elements would be (Michael Jordan, played for, Chicago Bulls), and (J. K. Rowling, birth place, Gloucestershire). Similarly to traditional RDBMS systems, having a unique identifier for each record in a store instead of a text label is important for it to be consistently referenced. RDF uses URIs, typically in the form of URLs, as these identifiers. The example above using URIs in the DBpedia knowledge graph would be \texttt{(<http://dbpedia.org/resource/Michael\_Jordan>, <http://dbpedia.org/ontology/birthPlace>, \linebreak  <http://dbpedia.org/resource/Brooklyn>)}
+
+\subsection{Knowledge Graphs}
+
+Knowledge bases are the virtual representation of linked data. They store the RDF statements as a graph, allowing for operations like creating new nodes and performing queries. There are several large-scale knowledge graphs commonly referenced as base datasets
+
+\begin{itemize}
+    \item \textbf{Wikidata} - a free and open database that, while useful in isolation as a knowledge graph, supports additional Wikimedia projects such as Wikipedia
+    \item \textbf{DBpedia} - a knowledge store built by querying the structured data stored in Wikipedia article infoboxes.
+    \item \textbf{Freebase} - Freebase was one of the leading knowledge bases before being purchased by Google. The technology behind it is now used to power the infoboxes for Google's search engine.
+\end{itemize}
+
+\subsection{SPARQL}
+
+SPARQL is the W3C recommended querying language for RDF-based databases. It is SQL-like, in that it contains familiar syntax like 'select' for projections and 'where' for conditional clauses. However, it differs in that the conditional clauses define triple patterns representing the various elements of a triple. One or more of the elements can be replaced with variables, allowing the SPARQL engine to search through the database and return all statements that match the pattern. The arguments are positional, such that the pattern \texttt{\{?s ?p ?o\}} represents the subject, property, and object, respectively (in this case, all the elements are free variables and as such every triple in the database is a match). For example, figure XXX represents a SPARQL query to DBpedia that returns the birth place of Michael Jordan in JSON format.
+
+\begin{lstlisting}[language=SPARQL,frame=single,breaklines=true]
+select ?o where {
+  <http://dbpedia.org/resource/Michael_Jordan>
+  <http://dbpedia.org/ontology/birthPlace>
+  ?o
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=json, frame=single,breaklines=true]
+{
+  "head": {
+    "link": [],
+    "vars": [
+      "o"
+    ]
+  },
+  "results": {
+    "distinct": false,
+    "ordered": true,
+    "bindings": [
+      {
+        "o": {
+          "type": "uri",
+          "value": "http://dbpedia.org/resource/Brooklyn"
+        }
+      }
+    ]
+  }
+}
+\end{lstlisting}
+
+\section*{Implementation}
+
+TODO
+
+\subsection*{Offline Automatic Template Generation}
+
+TODO
+
+\subsection*{Online Question Decomposition}
+
+TODO
+
+\section*{Experimentation}
+
+TODO
+
+\section*{Results}
+
+TODO
+
+\section*{Conclusion and Future Work}
+
+TODO
+
+\nocite{*}
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{proposal-references}
+
+\end{document}
+\endinput

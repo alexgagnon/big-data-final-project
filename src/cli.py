@@ -76,4 +76,11 @@ def init_parser() -> argparse.ArgumentParser:
         action='store',
         default=config.WORD_EMBEDDINGS_SIZE
     )
+    parser.add_argument(
+        '-f',
+        '--figures',
+        help='Generate figures',
+        action='store_true',
+        default=config.FIGURES
+    )
     return parser

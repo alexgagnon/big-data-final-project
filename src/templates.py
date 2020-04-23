@@ -1,5 +1,4 @@
 from typing import List, Tuple
-import timeit
 import logging
 
 log = logging.getLogger('logger')
@@ -27,73 +26,54 @@ common_statements = {
     'month': simple_query_template('dbo:month'),
     'day': simple_query_template('dbo:day'),
     'date': simple_query_template('dbo:date'),
+    'person': simple_query_template('dbo:person'),
     'abstract': base_query_template(statements=['<{}> dbo:abstract ?result . filter langMatches(lang(?result), "EN")'])
 }
 
-# use %s for strings you want to replace with URIs
-# question_templates = {
-#     'date': [
-#         ('what is {subject} {property}', common_statements['blank']),
-#         ('what year was {subject}', common_statements['year']),
-#         ('what year did {subject} happen',  common_statements['year']),
-#         ('when was {subject}', common_statements['date']),
-#         ('when did {subject} {property}', common_statements['blank']),
-#         ('what day did {subject} {property}', common_statements['blank']),
-#         ('what happened on {property}', common_statements['abstract']),
-#     ],
-#     'object': [
-#         ('what is {subject}', common_statements['abstract']),
-#         ('what is {subject} {property}', common_statements['blank']),
-#         ('who is {subject}',  common_statements['abstract']),
-#     ]
-# }
-
 question_templates = [
-    ('what day did {subject} {property}', common_statements['day']),
-    ('what year did {subject} {property}', common_statements['year']),
-    ('what occured on {property}', common_statements['abstract']),
-    ('what is {subject} {property}', common_statements['blank']),
-    ('what is {subject}', common_statements['abstract']),
-    ('what is there to {property} in {subject}', common_statements['blank']),
-    ('what year did {subject} occur',  common_statements['year']),
-    ('what year was {subject}', common_statements['year']),
-    ('when did {subject} {property}', common_statements['blank']),
-    ('when was {subject} {property}', common_statements['blank']),
-    ('when was {subject}', common_statements['date']),
-    ('where did {property} occur', common_statements['blank']),
-    ('where did {subject} {property}', common_statements['blank']),
-    ('where was {subject} when {property}', common_statements['blank']),
-    ('where is {property}', common_statements['location']),
-    ('who is {subject}',  common_statements['abstract']),
+    ('when did {subject} {property}', ['date', 'year']),
+    ('when was {subject} {property}', ['date', 'year']),
+    ('when was {subject}', ['date']),
+    ('what occured on {property}', [
+        'date', 'year', 'month', 'day']),
+    ('what occured in {property}', ['year', 'month', 'place']),
+    ('what occured at {subject}', ['abstract']),
+    ('what year did {subject} occur', ['year']),
+    ('what year did {subject} {property}', ['year']),
+    ('what day did {subject} {property}', ['day']),
+    ('what month did {subject} {property}', ['month']),
+    ('what happened at {property}', ['abstract']),
+    ('what is {subject} {property}', ['blank']),
+    ('what is {subject}', ['abstract']),
+    ('what is there to {property} in {subject}', ['blank']),
+    ('where did {property} occur', ['location']),
+    ('where did {subject} {property}', ['location']),
+    ('where was {subject} when {property}', ['location']),
+    ('where is {property}', ['location']),
+    ('who is {subject}',  ['abstract']),
+    ('does {subject} {property}', ['boolean'])
 
-    # ('which {object} did {subject} {property}', ),
+    # ('in which {property} did {subject} {property}'),
+    # ('in what {property} did {sobject} {object}'),
 ]
+
+type_mapping = {
+    ''
+}
 
 
 def generate_templates_from_properties(properties) -> List[Tuple[str, str]]:
     questions = set()
 
-    for uri, label in properties:
-        for template, query in question_templates:
-            questions.add((
-                template.format(subject='{e}', property=label),
-                query.replace('{property}', '<' + uri + '>')
-            ))
+    print(properties)
 
-    # OLD WAY USING SPECIFIC QUESTION TYPES
-    # for t, type_properties in properties.items():
-    #     if t not in question_templates:
-    #         continue
-    #     else:
-    #         log.info(f'Generating templates for {t} properties')
-
-    #     for label, uri in type_properties:
-    #         for template, query in question_templates[t]:
-    #             questions.add((
-    #                 template.format(subject='{}', property=label),
-    #                 query.replace('{property}', '<' + uri + '>')
-    #             ))
-
-    log.info(f'Generated {len(questions)} question templates')
+    for property_type in:
+        for template, property_types in question_templates:
+            for property_type in property_types:
+                query = common_statements[property_type]
+                questions.add((
+                    template.format(subject='{e}', property=label),
+                    query.replace('{property}', '<' + uri + '>')
+                ))
 
     return list(questions)

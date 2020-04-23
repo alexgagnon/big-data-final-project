@@ -150,72 +150,6 @@ def process_results(results: SPARQLWrapper.query, key) -> List[Tuple[str, str]]:
     return [(x["label"]["value"], x[key]["value"]) for x in results]
 
 
-types = {
-    'string': ['string'],
-    'boolean': ['boolean'],
-    'integer': ['integer', 'long'],
-    'decimal': ['float', 'double'],
-    'date': ['datetime', 'date', 'gYear', 'gMonth', 'gDay'],
-    'time': ['datetime', 'time'],
-    'property': None,
-    'object': None,
-    'annotation': None
-}
-
-
-# def get_all_properties():
-#     key = "p"
-#     properties = {}
-
-# for property_type, sub_types in types.items():
-#     log.debug('Querying for %s', property_type)
-#     if property_type not in properties:
-#         properties[property_type] = []
-
-#     # datatypes
-#     if property_type not in ['object', 'annotation', 'property']:
-#         for sub_type in sub_types:
-#             query = f"""select distinct ?{key} ?label where {{
-#                             ?{key} a owl:DatatypeProperty ;
-#                             rdfs:range xsd:{sub_type} ;
-#                             rdfs:label ?label
-#                             filter langMatches( lang(?label), "EN" )
-#                     }}"""
-#             sparql.setQuery(query)
-#             results = sparql.query()
-#             try:
-#                 bindings = parse_query_response(results)
-#                 properties[property_type].extend(
-#                     process_results(bindings, key))
-#             except Exception:
-#                 continue
-
-#     elif property_type == 'property':
-#         query = f"""select distinct ?{key} ?label {{
-#                         ?p a rdf:Property ;
-#                         rdfs:label ?label
-#                         filter langMatches( lang(?label), "EN" )
-#                 }}"""
-#         sparql.setQuery(query)
-#         results = sparql.query()
-#         bindings = parse_query_response(results)
-#         properties[property_type] = process_results(bindings, key)
-
-#     #  objects and annotations
-#     else:
-#         query = f"""select distinct ?{key} ?label where {{
-#                         ?{key} a owl:{property_type.capitalize()}Property ;
-#                         rdfs:label ?label
-#                         filter langMatches( lang(?label), "EN" )
-#                 }}"""
-#         sparql.setQuery(query)
-#         results = sparql.query()
-#         bindings = parse_query_response(results)
-#         properties[property_type] = process_results(bindings, key)
-
-# return properties
-
-
 def parse_query_response(query_results: SPARQLWrapper.query) -> List[str]:
     bindings = query_results.convert()['results']['bindings']
     check_invalid_query(query_results.response)  # can throw Exception
@@ -230,7 +164,7 @@ def replace_token(token) -> str:
     return new_token
 
 
-def convert_question_to_template(question: str) -> Tuple[str, List[str]]:
+def convert_question_to_template(question: str) -> Tuple[str, List[any]]:
 
     sentence = nlp(question)
 
@@ -262,7 +196,7 @@ def convert_question_to_template(question: str) -> Tuple[str, List[str]]:
     tag_string = ' '.join(template_tags)
     template_string = ' '.join(template_tokens)
 
-    if config.DEBUG:
+    if config.DEBUG and config.FIGURES:
         token_table = [[
             token.text,
             token.prob,
@@ -294,12 +228,12 @@ def convert_question_to_template(question: str) -> Tuple[str, List[str]]:
 
         log.debug('\n')
 
-        svg = displacy.render(sentence, style="dep")
-        output_path = Path("sentence-deps.svg")
-        output_path.open("w", encoding="utf-8").write(svg)
-
         svg = displacy.render(sentence, style="ent")
         output_path = Path("sentence-ents.svg")
+        output_path.open("w", encoding="utf-8").write(svg)
+
+        svg = displacy.render(sentence, style="dep")
+        output_path = Path("sentence-deps.svg")
         output_path.open("w", encoding="utf-8").write(svg)
 
         log.debug(question)
@@ -310,15 +244,24 @@ def convert_question_to_template(question: str) -> Tuple[str, List[str]]:
 
 
 def get_uri(label: str) -> Union[None, List[str]]:
-    log.debug(f'Getting uris for {label}')
-    result = query(f"""SELECT DISTINCT * WHERE {{
+    loose_match = f"""SELECT DISTINCT * WHERE {{
         ?labelUri rdfs:label ?label .
         FILTER (
             langMatches(lang(?label), "EN") &&
-            CONTAINS(LCASE(STR(?label)), "{label}")
+            CONTAINS(LCASE(STR(?label)), "{label.lower()}")
         )
         optional {{?labelUri dbo:wikiPageRedirects ?redirectUri}}
-    }}""")
+    }}"""
+
+    exact_match = f"""SELECT DISTINCT * WHERE {{
+        ?labelUri rdfs:label ?label ;
+          a owl:Thing
+        filter ( LCASE(STR(?label)) = "{label.lower()}"@en )
+        optional {{?labelUri dbo:wikiPageRedirects ?redirectUri}}
+    }}"""
+
+    log.debug(f'Getting uris for {label}')
+    result = query(exact_match)
 
     bindings = parse_query_response(result)  # can throw Exception
     if len(bindings) == 0:
@@ -350,7 +293,7 @@ def replace_uris_in_query(template, uris) -> str:
 def get_answer_property(question, templates):
     question_template, entities = convert_question_to_template(question)
     try:
-        uris = [get_uri(entity) for entity in entities]
+        uris = [get_uri(entity.text) for entity in entities]
         if uris == [None]:
             return []
 
@@ -394,7 +337,7 @@ def get_answer(question: str, templates) -> List[str]:
     # get URIs for entities
     # TODO: not a good way to handle multiple entities...
     timer.tic()
-    uris = [get_uri(entity) for entity in entities]
+    uris = [get_uri(entity.text) for entity in entities]
     if uris == [None]:
         return []
 
