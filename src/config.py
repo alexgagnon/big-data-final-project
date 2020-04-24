@@ -1,4 +1,5 @@
 DEBUG = False
+LOG = False
 UPDATE = False
 BENCHMARK = False
 FIGURES = False

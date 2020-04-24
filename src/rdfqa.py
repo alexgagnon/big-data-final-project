@@ -10,10 +10,9 @@ from templates import generate_templates_from_properties
 from properties import get_all_properties, get_filtered_properties
 from benchmark import run_benchmark
 from utils import get_answer
-from http.client import HTTPResponse
 from typing import Any, List, Literal, Tuple, Dict, Union
 from SPARQLWrapper import SPARQLWrapper, JSON
-
+from datetime import datetime
 
 logging.basicConfig(format='%(message)s')
 log = logging.getLogger("logger")
@@ -132,7 +131,7 @@ def main():
         log.info('Updating properties')
         timer.tic()
         properties = update()
-        timer.toc('Cached properties in: ')
+        log.info(f'Cached properties in: {timer.tocvalue()}')
 
     if args.templates or not has_templates_cache():
         log.info('Regenerating templates from cached properties')
@@ -147,21 +146,29 @@ def main():
         templates = generate_templates_from_properties(filtered_properties)
         log.info(f'Generated {len(templates)} question templates')
         save_to_file(templates, filename=config.TEMPLATES_FILENAME)
-        timer.toc('Templates created in: ')
+        log.info(f'Templates created in: {timer.tocvalue()}')
     else:
         log.debug('Loading templates from cache')
         templates = load_templates_from_cache()
-
-    log.info(f'Loaded {len(templates)} templates')
-    log.info(
-        f"Using '{config.SIMILARITY_METRIC}' as similarity metric, with threshold of {config.THRESHOLD}")
 
     if args.benchmark and args.question:
         log.error('Cannot ask question and run benchmarks at the same time')
         sys.exit(-1)
 
-    elif args.benchmark:
+    if args.log or args.benchmark:
+        now = datetime.now()
+        current_time = now.strftime("%Y:%m:%d-%H:%M:%S")
+        log_file = logging.FileHandler(
+            f'results/{current_time}-benchmarks.log')
+        log.addHandler(log_file)
+
+    log.info(f'Loaded {len(templates)} templates')
+    log.info(
+        f"Using '{config.SIMILARITY_METRIC}' as similarity metric, with threshold of {config.THRESHOLD}")
+
+    if args.benchmark:
         log.info('Running benchmarks...')
+
         run_benchmark(templates)
 
     elif args.question:

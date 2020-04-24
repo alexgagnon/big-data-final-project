@@ -54,12 +54,6 @@ def ld_similarity(question: str, template: str) -> float:
 get_similarity = nlp_similarity
 if config.SIMILARITY_METRIC == 'ld':
     get_similarity = ld_similarity
-elif config.SIMILARITY_METRIC == 'symspell':
-    from symspellpy import SymSpell
-    import pkg_resources
-
-    sym_spell = SymSpell()
-    dictionary_path = pkg_resources
 
 
 prefixes = """
@@ -314,58 +308,20 @@ def replace_uris_in_query(query, uris) -> str:
     return query.format(uris)
 
 
-def get_answer_property(question, templates: List):
-    question_template, entities = convert_question_to_template(question)
-    try:
-        uris = get_uris(entities)
-
-        # if uris == [None]:
-        #     return []
-
-        templates = get_similar_templates(question_template, templates)
-
-        if len(templates) == 0:
-            return []
-
-        answers = []
-
-        # try various entity URIs and templates
-        # TODO: bad way of assigning URIs to specific entities... nested lists
-        iterations = 0
-        for template in templates:
-            for entities in uris:
-                if entities == None:
-                    return None
-                for entity_uri in entities:
-                    if iterations >= config.MAX_TEMPLATE_SEARCHES:
-                        return None
-
-                    iterations += 1
-                    query_string = replace_uris_in_query(
-                        template.query, entity_uri)
-                    match = regex.match(query_string)
-                    if match != None:
-                        answers.append(match.group())
-
-        return answers
-    except Exception as ex:
-        log.debug(ex.with_traceback)
-
-
-def get_answer(question: str, templates: List) -> List[str]:
+def get_answer(question: str, templates: List) -> Union[None, List[str]]:
     # get question as template
     timer.tic()
     question_template, entities = convert_question_to_template(question)
-    timer.toc(
-        f'Converted question to "{question_template}" with entities {entities} in: ')
+    log.info(
+        f'Converted question to "{question_template}" with entities {entities} in: {timer.tocvalue()}')
 
     # get URIs for entities
     # TODO: not a good way to handle multiple entities...
     timer.tic()
     uris = get_uris(entities)
 
-    # if uris == [None]:
-    #     return []
+    if len(uris) == 0:
+        return None
 
     timer.toc(f'Found {len(uris)} URIs for entities {entities} in:')
 
@@ -374,13 +330,13 @@ def get_answer(question: str, templates: List) -> List[str]:
     timer.tic()
     templates = get_similar_templates(question_template, templates)
     # templates is (similarity, question, query)
-    timer.toc(
-        f'Found {len(templates)} similar templates in:'
+    log.info(
+        f'Found {len(templates)} similar templates in: {timer.tocvalue()}'
     )
 
     if len(templates) == 0:
         log.info('Could not find any similar templates!')
-        return []
+        return None
 
     log.debug('Top 5 templates:')
     for x in templates[:min(len(templates) - 1, 5)]:

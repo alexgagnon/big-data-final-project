@@ -56,7 +56,7 @@ def init_parser() -> argparse.ArgumentParser:
         '-m',
         '--metric',
         help='define the similarity metric used',
-        choices=['nlp', 'ld', 'symspell'],
+        choices=['nlp', 'ld'],
         action='store',
         default=config.SIMILARITY_METRIC
     )
@@ -82,5 +82,12 @@ def init_parser() -> argparse.ArgumentParser:
         help='Generate figures',
         action='store_true',
         default=config.FIGURES
+    )
+    parser.add_argument(
+        '-l',
+        '--log',
+        help='Output logs to file',
+        action='store',
+        default=config.LOG
     )
     return parser

@@ -1,0 +1,10 @@
+Loaded 7688 templates
+Using 'nlp' as similarity metric, with threshold of 0.9
+Running benchmarks...
+Testing 1 of 50: Which genre of album is Harder.....Faster?
+Converted question to "Which genre of album is Harder ..... Faster ?" with entities [] in: 0.008810199971776456
+INCORRECT
+
+Testing 2 of 50: what format is Fearless
+Converted question to "what format is {e}" with entities [Fearless] in: 0.005479499988723546
+Getting similar templates...
