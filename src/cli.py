@@ -56,7 +56,7 @@ def init_parser() -> argparse.ArgumentParser:
         '-m',
         '--metric',
         help='define the similarity metric used',
-        choices=['nlp', 'ld', 'lsh'],
+        choices=['nlp', 'ld', 'symspell'],
         action='store',
         default=config.SIMILARITY_METRIC
     )

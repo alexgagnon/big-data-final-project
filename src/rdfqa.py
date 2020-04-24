@@ -142,8 +142,7 @@ def main():
 
         log.info(f'{len(properties)} properties found')
 
-        filtered_properties = get_filtered_properties(
-            properties)
+        filtered_properties = get_filtered_properties(properties)
 
         templates = generate_templates_from_properties(filtered_properties)
         log.info(f'Generated {len(templates)} question templates')
@@ -173,6 +172,8 @@ def main():
         while True:
             try:
                 question = input("Ask a question:\n")
+                if question == '':
+                    continue
                 answer = get_answer(question, templates)
                 log.info(answer)
                 log.info('')

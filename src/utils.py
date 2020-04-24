@@ -54,6 +54,12 @@ def ld_similarity(question: str, template: str) -> float:
 get_similarity = nlp_similarity
 if config.SIMILARITY_METRIC == 'ld':
     get_similarity = ld_similarity
+elif config.SIMILARITY_METRIC == 'symspell':
+    from symspellpy import SymSpell
+    import pkg_resources
+
+    sym_spell = SymSpell()
+    dictionary_path = pkg_resources
 
 
 prefixes = """
@@ -74,7 +80,10 @@ PREFIX dbp: <http://dbpedia.org/property/>
 
 
 def paged_query(query_string: str) -> SPARQLWrapper.query:
-    limit = 10000
+    """
+    Allows for running queries that return all of the items, not limited by the endpoints max limit
+    """
+    limit = 10000  # typical max for Virtuoso servers
     results = []
     iteration = 0
     while True:
@@ -96,7 +105,7 @@ def paged_query(query_string: str) -> SPARQLWrapper.query:
 
 def query(query_string: str, endpoint: str = config.ENDPOINT) -> SPARQLWrapper.query:
     """
-    Performs a query
+    Generic function to perform a query
     """
     query_string = f"""
     {prefixes}
@@ -244,19 +253,20 @@ def convert_question_to_template(question: str) -> Tuple[str, List[any]]:
 
 
 def get_uri(label: str) -> Union[None, List[str]]:
-    loose_match = f"""SELECT DISTINCT * WHERE {{
-        ?labelUri rdfs:label ?label .
-        FILTER (
-            langMatches(lang(?label), "EN") &&
-            CONTAINS(LCASE(STR(?label)), "{label.lower()}")
-        )
-        optional {{?labelUri dbo:wikiPageRedirects ?redirectUri}}
-    }}"""
+    # loose_match = f"""SELECT DISTINCT * WHERE {{
+    #     ?labelUri rdfs:label ?label .
+    #     FILTER (
+    #         langMatches(lang(?label), "EN") &&
+    #         CONTAINS(LCASE(STR(?label)), "{label.lower()}")
+    #     )
+    #     optional {{?labelUri dbo:wikiPageRedirects ?redirectUri}}
+    # }}"""
 
     exact_match = f"""SELECT DISTINCT * WHERE {{
-        ?labelUri rdfs:label ?label ;
-          a owl:Thing
-        filter ( LCASE(STR(?label)) = "{label.lower()}"@en )
+        ?labelUri rdfs:label ?label .
+        filter (
+            ?label = "{label}"@en
+        )
         optional {{?labelUri dbo:wikiPageRedirects ?redirectUri}}
     }}"""
 
@@ -282,20 +292,35 @@ def get_uri(label: str) -> Union[None, List[str]]:
     return uris
 
 
+def get_uris(entities) -> List[str]:
+    uris = []
+    for entity in entities:
+        # If the KB entiter linker is used, entities may have corresponding URIs
+        # already in spaCy. If not, hit the DB and try to find it
+        id = entity.kb_id_
+        if id == '':
+            id = get_uri(entity.text)
+
+        uris.append(id)
+
+    return uris
+
+
 def get_result_value(result, key="result") -> str:
     return result[key]["value"]
 
 
-def replace_uris_in_query(template, uris) -> str:
-    return template.format(uris)
+def replace_uris_in_query(query, uris) -> str:
+    return query.format(uris)
 
 
-def get_answer_property(question, templates):
+def get_answer_property(question, templates: List):
     question_template, entities = convert_question_to_template(question)
     try:
-        uris = [get_uri(entity.text) for entity in entities]
-        if uris == [None]:
-            return []
+        uris = get_uris(entities)
+
+        # if uris == [None]:
+        #     return []
 
         templates = get_similar_templates(question_template, templates)
 
@@ -317,7 +342,7 @@ def get_answer_property(question, templates):
 
                     iterations += 1
                     query_string = replace_uris_in_query(
-                        template[2], entity_uri)
+                        template.query, entity_uri)
                     match = regex.match(query_string)
                     if match != None:
                         answers.append(match.group())
@@ -327,7 +352,7 @@ def get_answer_property(question, templates):
         log.debug(ex.with_traceback)
 
 
-def get_answer(question: str, templates) -> List[str]:
+def get_answer(question: str, templates: List) -> List[str]:
     # get question as template
     timer.tic()
     question_template, entities = convert_question_to_template(question)
@@ -337,16 +362,18 @@ def get_answer(question: str, templates) -> List[str]:
     # get URIs for entities
     # TODO: not a good way to handle multiple entities...
     timer.tic()
-    uris = [get_uri(entity.text) for entity in entities]
-    if uris == [None]:
-        return []
+    uris = get_uris(entities)
 
-    timer.toc(f'Found URIs {uris} for entities {entities} in:')
+    # if uris == [None]:
+    #     return []
+
+    timer.toc(f'Found {len(uris)} URIs for entities {entities} in:')
 
     #  find similar templates
     log.info('Getting similar templates...')
     timer.tic()
     templates = get_similar_templates(question_template, templates)
+    # templates is (similarity, question, query)
     timer.toc(
         f'Found {len(templates)} similar templates in:'
     )
@@ -355,7 +382,6 @@ def get_answer(question: str, templates) -> List[str]:
         log.info('Could not find any similar templates!')
         return []
 
-    log.debug(uris)
     log.debug('Top 5 templates:')
     for x in templates[:min(len(templates) - 1, 5)]:
         log.debug(x)
@@ -374,7 +400,8 @@ def get_answer(question: str, templates) -> List[str]:
                     return []
 
                 iterations += 1
-                query_string = replace_uris_in_query(template[2], entity_uri)
+                query_string = replace_uris_in_query(
+                    template[2], entity_uri)
                 log.debug(query_string)
                 results = query(query_string)
 
