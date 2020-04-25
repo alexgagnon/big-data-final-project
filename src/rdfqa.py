@@ -139,7 +139,11 @@ def main():
         if properties == None:
             properties = load_properties_from_cache()
 
-        log.info(f'{len(properties)} properties found')
+        total_properties = 0
+        for property_type in properties:
+            total_properties += len(properties[property_type])
+        log.info(
+            f'{len(properties.keys())} property types with {total_properties} total properties found')
 
         filtered_properties = get_filtered_properties(properties)
 

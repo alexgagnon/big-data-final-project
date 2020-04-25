@@ -8,3 +8,83 @@ INCORRECT
 Testing 2 of 50: what format is Fearless
 Converted question to "what format is {e}" with entities [Fearless] in: 0.005479499988723546
 Getting similar templates...
+Found 1876 similar templates in: 87.81573309999658
+Maximum iterations of templates exceeded, no results :(
+INCORRECT
+
+Testing 3 of 50: what film is by the writer Phil Hay?
+Converted question to "what film is by the writer {e} ?" with entities [Phil Hay] in: 0.025144900020677596
+Getting similar templates...
+Found 318 similar templates in: 85.46297569997841
+Maximum iterations of templates exceeded, no results :(
+INCORRECT
+
+Testing 4 of 50: Where did Roger Marquis die
+Converted question to "Where did {e} {v}" with entities [Roger Marquis] in: 0.00988090003374964
+Getting similar templates...
+Found 1201 similar templates in: 85.02765750000253
+Maximum iterations of templates exceeded, no results :(
+INCORRECT
+
+Testing 5 of 50: Which equestrian was born in Dublin?
+Converted question to "Which equestrian was {v} in {e} ?" with entities [Dublin] in: 0.024771400028839707
+Getting similar templates...
+Found 1380 similar templates in: 87.97329330001958
+Maximum iterations of templates exceeded, no results :(
+INCORRECT
+
+Testing 6 of 50: What is a tv action show?
+Converted question to "What is a tv action show ?" with entities [] in: 0.011390400002710521
+INCORRECT
+
+Testing 7 of 50: What's a song by Jean Grae
+Converted question to "What 's a song by {e}" with entities [Jean Grae] in: 0.012666900001931936
+Getting similar templates...
+Found 422 similar templates in: 84.35864319995744
+Maximum iterations of templates exceeded, no results :(
+INCORRECT
+
+Testing 8 of 50: What position does Carlos Gomez play?
+Converted question to "What position does {e} {v} ?" with entities [Carlos Gomez] in: 0.010958199971355498
+Getting similar templates...
+Found 1872 similar templates in: 83.79052280000178
+INCORRECT
+
+Testing 9 of 50: how does Engelbert Zaschka identify
+Converted question to "how does {e} {v}" with entities [Engelbert Zaschka] in: 0.010157199983950704
+Getting similar templates...
+Found 1242 similar templates in: 84.20151049998822
+Maximum iterations of templates exceeded, no results :(
+INCORRECT
+
+Testing 10 of 50: who produced the film Woodstock Villa
+Converted question to "who {v} the film {e}" with entities [Woodstock Villa] in: 0.009886600018944591
+Getting similar templates...
+Found 1174 similar templates in: 84.58754010003759
+Maximum iterations of templates exceeded, no results :(
+INCORRECT
+
+Testing 11 of 50: what position does Pee Wee Reese play in Baseball
+Converted question to "what position does {e} {v} in {e}" with entities [Pee Wee Reese, Baseball] in: 0.013378499948885292
+Getting similar templates...
+Found 1908 similar templates in: 86.93312639999203
+Maximum iterations of templates exceeded, no results :(
+INCORRECT
+
+Testing 12 of 50: Which Swiss conductor's cause of death is myocardial infarction?
+Converted question to "Which {e} conductor 's cause of death is myocardial infarction ?" with entities [Swiss] in: 0.011896300013177097
+Getting similar templates...
+Found 2 similar templates in: 88.4522315999493
+INCORRECT
+
+Testing 13 of 50: what type of music does David Ruffin play
+Converted question to "what type of music does {e} {v}" with entities [David Ruffin] in: 0.011995300010312349
+Getting similar templates...
+Found 2211 similar templates in: 86.1959926999989
+Maximum iterations of templates exceeded, no results :(
+INCORRECT
+
+Testing 14 of 50: where was Padraic McGuinness's place of death
+Converted question to "where was {e} place of death" with entities [Padraic McGuinness's] in: 0.026393999985884875
+Getting similar templates...
+Found 2608 similar templates in: 83.85555320000276

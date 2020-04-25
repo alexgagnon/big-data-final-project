@@ -4,3 +4,4 @@ venv/
 import-time.txt
 remo/
 dumps/
+results/

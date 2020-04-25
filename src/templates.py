@@ -87,6 +87,7 @@ question_templates = [
      'object', 'string', 'number'], None),
     ('what is there to {property} in {subject}', ['object', 'string'], None),
     ('where did {subject} {property}', ['object', 'string'], None),
+    # ('where was {subject} {property}', ['object', 'string'], None),
     ('where was {subject} when {property}', ['object', 'string'], None),
     ('where is {subject}', None, ['location']),
     ('who is {subject}',  None, ['abstract']),
@@ -97,7 +98,7 @@ question_templates = [
     ('how does {subject} work', None, ['abstract']),
     ('how does {subject} {property}', ['object', 'string'], None),
     ('what is an example of {subject}', None, ['abstract']),
-    ('in what {{}} did {subject} {property}', ['object', 'string'], None),
+    # ('in what {{}} did {subject} {property}', ['object', 'string'], None),
 ]
 
 
@@ -114,17 +115,27 @@ def generate_templates_from_properties(properties: Dict[str, List[Property]]) ->
                     continue
 
                 for property in properties[type]:
-                    questions.add((
-                        template.format(subject='{e}', property=property[1]),
-                        common_statements['property'].replace(
-                            '{property}', '<' + property[0] + '>')
-                    ))
+                    try:
+                        questions.add((
+                            template.format(
+                                subject='{e}', property=property[1]),
+                            common_statements['property'].replace(
+                                '{property}', '<' + property[0] + '>')
+                        ))
+                    except Exception as ex:
+                        log.error(
+                            f'Stumbled at {template}, {type}, {property}')
 
         elif common_types != None:
             for common_type in common_types:
-                questions.add((
-                    template.format(subject='{e}'),
-                    common_statements[common_type]
-                ))
+                try:
+                    questions.add((
+                        template.format(subject='{e}'),
+                        common_statements[common_type]
+                    ))
+
+                except Exception as ex:
+                    log.error(
+                        f'Stumbled at {template}, {common_type}')
 
     return list(questions)

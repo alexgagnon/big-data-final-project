@@ -199,7 +199,7 @@ def convert_question_to_template(question: str) -> Tuple[str, List[any]]:
     tag_string = ' '.join(template_tags)
     template_string = ' '.join(template_tokens)
 
-    if config.DEBUG and config.FIGURES:
+    if config.FIGURES:
         token_table = [[
             token.text,
             token.prob,
@@ -295,7 +295,8 @@ def get_uris(entities) -> List[str]:
         if id == '':
             id = get_uri(entity.text)
 
-        uris.append(id)
+        if id != None:
+            uris.append(id)
 
     return uris
 
@@ -308,9 +309,14 @@ def replace_uris_in_query(query, uris) -> str:
     return query.format(uris)
 
 
+apostrophe_regex = re.compile("'s\s")
+
+
 def get_answer(question: str, templates: List) -> Union[None, List[str]]:
     # get question as template
     timer.tic()
+    if config.STRIP_POSSESSIVE_APOSTROPHES:
+        question = question.replace("'s ", ' ')
     question_template, entities = convert_question_to_template(question)
     log.info(
         f'Converted question to "{question_template}" with entities {entities} in: {timer.tocvalue()}')
@@ -323,7 +329,9 @@ def get_answer(question: str, templates: List) -> Union[None, List[str]]:
     if len(uris) == 0:
         return None
 
-    timer.toc(f'Found {len(uris)} URIs for entities {entities} in:')
+    log.info(
+        f'Found {len(uris)} URIs for entities {entities} in: {timer.tocvalue()}')
+    log.debug(uris)
 
     #  find similar templates
     log.info('Getting similar templates...')
@@ -349,6 +357,9 @@ def get_answer(question: str, templates: List) -> Union[None, List[str]]:
     iterations = 0
     for template in templates:
         for entities in uris:
+            if entities == None:
+                iterations += 1
+                continue
             for entity_uri in entities:
                 if iterations >= config.MAX_TEMPLATE_SEARCHES:
                     log.info(
