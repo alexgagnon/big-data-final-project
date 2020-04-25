@@ -79,15 +79,22 @@ def init_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '-f',
         '--figures',
-        help='Generate figures',
+        help='generate figures',
         action='store_true',
         default=config.FIGURES
     )
     parser.add_argument(
         '-l',
         '--log',
-        help='Output logs to file',
+        help='output logs to file',
         action='store',
         default=config.LOG
+    )
+    parser.add_argument(
+        '-a',
+        '--ask',
+        help='ask a question through the CLI',
+        action='store',
+        default=config.PROMPT_AS_DEFAULT
     )
     return parser

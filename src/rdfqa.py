@@ -179,7 +179,7 @@ def main():
         answer = get_answer(args.question, templates)
         log.info(answer)
 
-    else:
+    elif args.ask:
         while True:
             try:
                 question = input("Ask a question:\n")
@@ -194,6 +194,9 @@ def main():
             except EOFError:
                 log.info('\nExiting\n')
                 sys.exit(0)
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
