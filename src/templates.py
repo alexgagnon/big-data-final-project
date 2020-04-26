@@ -102,6 +102,10 @@ question_templates = [
 ]
 
 
+def generate_template_pair(question, query):
+    return (question, query)
+
+
 def generate_templates_from_properties(properties: Dict[str, List[Property]]) -> List[Template]:
     """
     Generate a dictionary of question/query templates, where the keys represent the datatype of the range of the answers
@@ -116,7 +120,7 @@ def generate_templates_from_properties(properties: Dict[str, List[Property]]) ->
 
                 for property in properties[type]:
                     try:
-                        questions.add((
+                        questions.add(generate_template_pair(
                             template.format(
                                 subject='{e}', property=property[1]),
                             common_statements['property'].replace(
@@ -129,7 +133,7 @@ def generate_templates_from_properties(properties: Dict[str, List[Property]]) ->
         elif common_types != None:
             for common_type in common_types:
                 try:
-                    questions.add((
+                    questions.add(generate_template_pair(
                         template.format(subject='{e}'),
                         common_statements[common_type]
                     ))

@@ -327,6 +327,7 @@ def get_answer(question: str, templates: List) -> Union[None, List[str]]:
     uris = get_uris(entities)
 
     if len(uris) == 0:
+        log.info('Could not find any matching URIs for the subject')
         return None
 
     log.info(

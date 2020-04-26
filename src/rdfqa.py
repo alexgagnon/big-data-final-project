@@ -135,6 +135,8 @@ def main():
 
     if args.templates or not has_templates_cache():
         log.info('Regenerating templates from cached properties')
+        log.info(
+            f'Using {config.MIN_PROPERTY_REFERENCE_COUNT} as minimum reference requirement')
         timer.tic()
         if properties == None:
             properties = load_properties_from_cache()
